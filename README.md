@@ -14,7 +14,7 @@
 
 ![alt text](images/result2.png)
 
-[Ball demo](https://romanppp.github.io/physicsEngineTS/test)
+[Ball demo](https://romanppp.github.io/physicsEngineTS/ball)
 
 ![alt text](images/ball.jpg)
 
