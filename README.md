@@ -7,12 +7,12 @@
 
 [Box stack demo](https://romanppp.github.io/physicsEngineTS/stack)
 
-![alt text](images/result2.gif)
+![alt text](images/result2.png)
 
 
 [Box stack demo 2 ](https://romanppp.github.io/physicsEngineTS/stackNoCacheContacts)
 
-![alt text](images/result2.gif)
+![alt text](images/result2.png)
 
 [Ball demo](https://romanppp.github.io/physicsEngineTS/test)
 
