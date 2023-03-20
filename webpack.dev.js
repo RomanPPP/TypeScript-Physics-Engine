@@ -22,8 +22,8 @@ module.exports = {
   },
   entry: {
     wall: {
-      import: "./test.ts",
-      filename: "./test.js",
+      import: "./ball.ts",
+      filename: "./ball.js",
     },
     
     stack : {
@@ -36,16 +36,5 @@ module.exports = {
     }
   },
   devtool: "inline-source-map",
-  plugins: [
-    new CompressionPlugin({
-      test: /\.js(\?.*)?$/i,
-
-      algorithm: "gzip",
-      deleteOriginalAssets: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, "test.html"),
-      filename: "index.html",
-    }),
-  ],
+  
 };
