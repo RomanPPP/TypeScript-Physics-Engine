@@ -8,9 +8,9 @@ import {
 
 } from "romanpppgraphics";
 
-import FreeCam from "./src/misc/FreeCam";
-import KeyInput from "./src/misc/keyInput";
-import MouseInput from "./src/misc/mouseInput";
+import FreeCam from "../../src/misc/FreeCam";
+import KeyInput from "../../src/misc/keyInput";
+import MouseInput from "../../src/misc/mouseInput";
 const mouseInput = new MouseInput();
 mouseInput.listen();
 const keyInput = new KeyInput();
@@ -94,23 +94,24 @@ const uniforms = {
 
 
 
-import { RigidBody } from "./src/physics/RigidBody";
+import { RigidBody } from "../../src/physics/RigidBody";
 
-import Simulation from "./src/physics/Simulation";
+import Simulation from "../../src/physics/Simulation";
 
-import { Box, Sphere } from "./src/physics/Collider";
-import IRigidBody from "./src/physics/models/IRigidBody";
+import { Box, Sphere } from "../../src/physics/Collider";
+import IRigidBody from "../../src/physics/models/IRigidBody";
 import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
 import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
-import { Constraint } from "./src/physics/Constraints";
-import config from "./src/physics/config";
-config.RIGID_BODY_MOVE_TRESHOLD = 0.001
+import { Constraint } from "../../src/physics/Constraints";
+import config from "../../src/physics/config";
+config.RIGID_BODY_MOVE_TRESHOLD = 0.005
+config.CONTACT_TRESHOLD = 0.01
 const sim = new Simulation();
 const body = new RigidBody(new Box(5, 5, 5));
 
 const floor = {physics : new RigidBody(new Box(100,5,100)), sprite : cube, uniforms : {u_color : [1,0,1,1]}}
 
-floor.physics.setMass(99999999999)
+floor.physics.setMass(1)
 floor.physics.static = true
 
 floor.physics.translate([0,-2.5,0])
@@ -149,7 +150,7 @@ const box = { physics: new RigidBody(new Sphere(5)), sprite: sphere, uniforms : 
   box.physics.translate([0,5,-30]);
   box.physics.setMass(32);
   box.physics.addAcceleration([0, -9, 0]);
-  box.physics.addVelocity([0,0,30])
+ box.physics.addVelocity([0,0,3])
   box.physics.addAngularV([1,1,1])
   sim.addObject(box.physics);
   objectsToDraw.push(box);

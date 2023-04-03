@@ -22,19 +22,26 @@ module.exports = {
   },
   entry: {
     wall: {
-      import: "./ball.ts",
+      import: "./demo/ball/ball.ts",
       filename: "./ball.js",
     },
     
     stack : {
-      import : "./stack.ts",
+      import : "./demo/stack/stack.ts",
       filename : "./stack.js"
     },
-    stackNocache : {
-      import : "./stackNoCacheContact.ts",
-      filename : "./stackNoCacheContact.js"
+    joints : {
+      import : "./demo/joints/joints.ts",
+      filename : "./joints.js"
     }
   },
   devtool: "inline-source-map",
-  
+  plugins: [
+    new CompressionPlugin({
+      test: /\.js(\?.*)?$/i,
+
+      algorithm: "gzip",
+      deleteOriginalAssets: false,
+    }),
+  ],
 };

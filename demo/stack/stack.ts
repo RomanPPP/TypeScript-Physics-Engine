@@ -7,10 +7,10 @@ import {
   createSphere
 
 } from "romanpppgraphics";
-import {vert, frag} from './shader'
-import FreeCam from "./src/misc/FreeCam";
-import KeyInput from "./src/misc/keyInput";
-import MouseInput from "./src/misc/mouseInput";
+
+import FreeCam from "../../src/misc/FreeCam";
+import KeyInput from "../../src/misc/keyInput";
+import MouseInput from "../../src/misc/mouseInput";
 const mouseInput = new MouseInput();
 mouseInput.listen();
 const keyInput = new KeyInput();
@@ -94,14 +94,12 @@ const uniforms = {
 
 
 
-import { RigidBody } from "./src/physics/RigidBody";
+import { RigidBody } from "../../src/physics/RigidBody";
 
-import Simulation from "./src/physics/Simulation";
+import Simulation from "../../src/physics/Simulation";
 
-import { Box, Sphere } from "./src/physics/Collider";
-import IRigidBody from "./src/physics/models/IRigidBody";
-import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
-import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
+import { Box, Sphere } from "../../src/physics/Collider";
+
 
 const sim = new Simulation();
 const body = new RigidBody(new Box(5, 5, 5));
@@ -138,6 +136,7 @@ for (let i = 0; i < 10; i++) {
   box.physics.translate([0,  1.5 + 3.1 * (i), 0]);
   //box.physics.translate([0,  1 + 3.01 * (i), 0]);
   box.physics.setMass(2);
+  box.physics.friction = 10
   box.physics.addAcceleration([0, -9, 0]);
   sim.addObject(box.physics);
   objectsToDraw.push(box);

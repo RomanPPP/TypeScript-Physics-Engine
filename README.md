@@ -5,16 +5,16 @@
 
 
 
-[Box stack demo](https://romanppp.github.io/physicsEngineTS/stack)
+[Box stack demo](https://romanppp.github.io/physicsEngineTS/demo/stack)
 
 ![alt text](images/result2.png)
 
 
-[Box stack demo 2 ](https://romanppp.github.io/physicsEngineTS/stackNoCacheContacts)
+
 
 ![alt text](images/result2.png)
 
-[Ball demo](https://romanppp.github.io/physicsEngineTS/test)
+[Ball demo](https://romanppp.github.io/physicsEngineTS/demo/ball)
 
 ![alt text](images/ball.jpg)
 

@@ -150,7 +150,7 @@ export default class Simulation {
     
     const system = new System();
     system.useCache = this.useCache
-    const frictionSystem = new System();
+    const frictionSystem = new System(false);
     const contactEquations = [];
     const frictionEquations = [];
     for (let [key, manifold] of collisionManifolds) {
@@ -159,7 +159,7 @@ export default class Simulation {
       manifold.contacts.forEach((contactConstraint, _i) => {
        
         const contactEquation = contactConstraint.getEquation()
-        contactEquation.prevLambda = contactConstraint.prevLambda
+        
         const [fEquation1, fEquation2] = contactConstraint.getFrictionEquations()
         
        
@@ -173,9 +173,11 @@ export default class Simulation {
     
     for (let [name, constraints] of this.constraints) {
       const equations = []
+
       constraints.forEach(c =>{
         c.update()
         const equation = c.getEquation()
+       
         equations.push(equation)
       })
       system.addEquations(equations);
@@ -188,21 +190,21 @@ export default class Simulation {
     
     system.updateEquations(dt)
     system.generateSystem(dt);
-    frictionSystem.updateEquations(dt);
-    frictionSystem.generateSystem(dt);
+    
     const lambda = system.solvePGS(dt,true);
     
-    const len = frictionEquations.length / 2;
-    for (let i = 0; i < len; i++) {
-      frictionEquations[2 * i].lambdaMin *= lambda[i];
-      frictionEquations[2 * i].lambdaMax *= lambda[i];
-      frictionEquations[2 * i + 1].lambdaMin *= lambda[i];
-      frictionEquations[2 * i + 1].lambdaMax *= lambda[i];
-    }
-
     
-    frictionSystem.solvePGS(dt);
+    const len = frictionEquations.length / 2;
+  /*for (let i = 0; i < len; i++) {
+      frictionEquations[2 * i].lambdaMin *= lambda[i];
+      frictionEquations[2 * i].lambdaMax = lambda[i];
+      frictionEquations[2 * i + 1].lambdaMin *= lambda[i];
+      frictionEquations[2 * i + 1].lambdaMax = lambda[i];
+    }*/
 
+    frictionSystem.updateEquations(dt);
+    frictionSystem.generateSystem(dt);
+    frictionSystem.solvePGS(dt);
     for (const [id, object] of objects) {
       object.integrateVelocities(dt);
     }
@@ -210,13 +212,14 @@ export default class Simulation {
     
     
     let ndx = 0;
+    /*
     for (const [key, manifold] of this.collisionManifolds) {
       
       manifold.contacts.forEach((c) => {
         c.prevLambda = lambda[ndx]
         ndx++;
       });
-    }
+    }*/
     /*
     const positionSystem = new System();
     const positionConstraints = [];

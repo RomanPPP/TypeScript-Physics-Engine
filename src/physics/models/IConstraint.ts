@@ -16,6 +16,7 @@ export default interface IConstraint {
   treshold: number;
   lambdaMin: number;
   lambdaMax: number;
+  prevLambda : number
   getEquation() :IEquation
   update(): {
     deltaPA: vec3;

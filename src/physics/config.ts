@@ -8,6 +8,6 @@ const config = {
   CONTACT_TRESHOLD: 0.05,
   CONTACT_MANIFOLD_KEEP_TRESHOLD: 0.001,
   SOLVER_ITERATIONS_NUM : 18,
-  USE_CONTACT_CACHE : true
+  USE_CONTACT_CACHE : false
 };
 export default config;

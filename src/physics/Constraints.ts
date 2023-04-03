@@ -10,7 +10,7 @@ import IEquation from "./models/IEquation";
 
 import config from "./config";
 
-const {CONTACT_TRESHOLD, CONTACT_BIAS} = config
+const { CONTACT_TRESHOLD, CONTACT_BIAS } = config;
 
 export class Constraint implements IConstraint {
   n: vec3;
@@ -25,9 +25,10 @@ export class Constraint implements IConstraint {
   treshold: number;
   lambdaMin: number;
   lambdaMax: number;
-  prevLambda : number
+  prevLambda: number;
   readonly body1: IRigidBody;
   readonly body2: IRigidBody;
+
   constructor(
     body1: IRigidBody,
     body2: IRigidBody,
@@ -44,11 +45,18 @@ export class Constraint implements IConstraint {
     this.body2 = body2;
     this.raLocal = raLocal;
     this.rbLocal = rbLocal;
-    this.biasFactor = opt.biasFactor | 0.125;
-    this.treshold = opt.treshold | 0.000005;
-    this.lambdaMin = opt.lambdaMin | -Infinity;
-    this.lambdaMax = opt.lambdaMax | Infinity;
-    this.prevLambda = 0
+    this.biasFactor = opt.biasFactor || 0.125;
+    this.treshold = opt.treshold || 0.000005;
+    this.lambdaMin = opt.lambdaMin || -99999999;
+    this.lambdaMax = opt.lambdaMax || 99999999;
+    this.prevLambda = 0;
+
+    const collider1 = this.body1.collider;
+    const collider2 = this.body2.collider;
+    this.ra = m3.transformPoint(collider1.Rmatrix, this.raLocal);
+    this.rb = m3.transformPoint(collider2.Rmatrix, this.rbLocal);
+    this.PA = v3.sum(collider1.pos, this.ra);
+    this.PB = v3.sum(collider2.pos, this.rb);
   }
   update() {
     const collider1 = this.body1.collider;
@@ -63,7 +71,8 @@ export class Constraint implements IConstraint {
     this.PB = PB;
     const direction = v3.diff(PA, PB);
 
-    this.positionError = v3.norm(direction);
+    this.positionError = v3.norm(v3.sum([0.001, 0.001, 0.001], direction));
+
     this.n = v3.scale(direction, 1 / this.positionError);
     return {
       deltaPA,
@@ -71,18 +80,13 @@ export class Constraint implements IConstraint {
     };
   }
   getEquation(): IEquation {
-    return new ConstraintEquation(
-      this.body1,
-      this.body2,
-      this.ra,
-      this.rb,
-      this.n,
-      this.positionError,
-      this.biasFactor,
-      this.lambdaMin,
-      this.lambdaMax,
-      this.treshold
+    const equation = new ConstraintEquation(
+      this
     );
+    equation.lambdaMax = this.lambdaMax
+    equation.lambdaMin = this.lambdaMin
+    return equation
+
   }
 }
 export class ContactConstraint implements IConstraint {
@@ -106,7 +110,7 @@ export class ContactConstraint implements IConstraint {
   treshold: number;
   lambdaMin: number;
   lambdaMax: number;
-  prevLambda : number
+  prevLambda: number;
   readonly body1: IRigidBody;
   readonly body2: IRigidBody;
   readonly i: vec3;
@@ -137,8 +141,8 @@ export class ContactConstraint implements IConstraint {
     this.positionError = positionError;
     this.i = i;
     this.j = j;
-    this.biasFactor = CONTACT_BIAS;
-    this.treshold = CONTACT_TRESHOLD;
+    this.biasFactor = config.CONTACT_BIAS;
+    this.treshold = config.CONTACT_TRESHOLD;
     this.lambdaMin = ContactConstraint.opt.lambdaMin;
     this.lambdaMax = ContactConstraint.opt.lambdaMax;
   }
@@ -171,45 +175,29 @@ export class ContactConstraint implements IConstraint {
         )
       ) * 10
     );
-    return new ContactEquation(
-      this.body1,
-      this.body2,
-      this.ra,
-      this.rb,
-      this.n,
-      this.positionError,
-      this.biasFactor,
-      0,
-      lambdaMax,
-      this.treshold
+    const equation = new ContactEquation(
+      this
     );
+
+    equation.lambdaMax = lambdaMax
+    equation.lambdaMin = 0
+    return equation
   }
   getFrictionEquations(): FrictionEquation[] {
-    return [
-      new FrictionEquation(
-        this.body1,
-        this.body2,
-        this.ra,
-        this.rb,
-        v3.scale(this.i, 1),
-        this.positionError,
-        this.biasFactor,
-        -this.body1.friction - this.body2.friction,
-        this.body1.friction + this.body2.friction,
-        this.treshold
-      ),
-      new FrictionEquation(
-        this.body1,
-        this.body2,
-        this.ra,
-        this.rb,
-        v3.scale(this.j, 1),
-        this.positionError,
-        this.biasFactor,
-        -this.body1.friction - this.body2.friction,
-        this.body1.friction + this.body2.friction,
-        this.treshold
-      )
+    const eq1 = new FrictionEquation(
+      this,
+      0
+     )
+     const eq2 = new FrictionEquation(
+      this,
+      1
+    )
+    eq1.lambdaMax = Infinity
+    eq1.lambdaMin = - Infinity
+    eq2.lambdaMax = Infinity
+    eq2.lambdaMin = - Infinity
+     return [
+      eq1, eq2
     ];
   }
 }
