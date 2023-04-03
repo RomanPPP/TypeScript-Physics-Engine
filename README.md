@@ -5,11 +5,11 @@
 
 
 
-[Box stack demo](https://romanppp.github.io/physicsEngineTS/demo/stack)
+[Box stack demo](https://romanppp.github.io/physicsEngineTS/demo/stack/stack.html)
 
 ![alt text](images/result2.png)
 
-[Ball demo](https://romanppp.github.io/physicsEngineTS/demo/ball)
+[Ball demo](https://romanppp.github.io/physicsEngineTS/demo/ball/ball.html)
 
 ![alt text](images/ball.jpg)
 
