@@ -26,6 +26,7 @@ export class Constraint implements IConstraint {
   lambdaMin: number;
   lambdaMax: number;
   prevLambda: number;
+  
   readonly body1: IRigidBody;
   readonly body2: IRigidBody;
 
@@ -111,6 +112,7 @@ export class ContactConstraint implements IConstraint {
   lambdaMin: number;
   lambdaMax: number;
   prevLambda: number;
+  prevTanLambdas:number[]
   readonly body1: IRigidBody;
   readonly body2: IRigidBody;
   readonly i: vec3;
@@ -145,6 +147,8 @@ export class ContactConstraint implements IConstraint {
     this.treshold = config.CONTACT_TRESHOLD;
     this.lambdaMin = ContactConstraint.opt.lambdaMin;
     this.lambdaMax = ContactConstraint.opt.lambdaMax;
+    this.prevTanLambdas = [0,0]
+    this.prevLambda = 0
   }
   update() {
     const collider1 = this.body1.collider;

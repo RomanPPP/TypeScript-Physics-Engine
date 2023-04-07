@@ -186,7 +186,9 @@ export default class Simulation {
     //system.updateEquations(dt);
 
     frictionSystem.addEquations(frictionEquations);
-
+    frictionSystem.updateEquations(dt);
+    frictionSystem.generateSystem(dt);
+    frictionSystem.solvePGS(dt);
     
     system.updateEquations(dt)
     system.generateSystem(dt);
@@ -202,9 +204,7 @@ export default class Simulation {
       frictionEquations[2 * i + 1].lambdaMax = lambda[i];
     }*/
 
-    frictionSystem.updateEquations(dt);
-    frictionSystem.generateSystem(dt);
-    frictionSystem.solvePGS(dt);
+    
     for (const [id, object] of objects) {
       object.integrateVelocities(dt);
     }

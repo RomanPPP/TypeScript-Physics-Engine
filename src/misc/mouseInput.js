@@ -1,12 +1,13 @@
 import  EventEmitter  from "../physics/EventEmitter.ts";
 
 export default class MouseInput extends EventEmitter {
-  constructor() {
+  constructor(element = document) {
     super();
     this.lastX = 0;
     this.lastY = 0;
     this.enable = false;
     this.moves = []
+    this.element = element
   }
   logMove({ offsetX, offsetY }) {
     const deltaX = offsetX - this.lastX;
@@ -30,13 +31,13 @@ export default class MouseInput extends EventEmitter {
       this.enable = false;
     }.bind(this);
 
-    document.addEventListener("mousemove", _);
-    document.addEventListener("mousedown", down);
-    document.addEventListener("mouseup", up);
+    this.element.addEventListener("mousemove", _);
+    this.element.addEventListener("mousedown", down);
+    this.element.addEventListener("mouseup", up);
     this.unsubscribe = () => {
-      document.removeEventListener("mousemove", _);
-      document.removeEventListener("mousedown", down);
-      document.removeEventListener("mouseup", up);
+      this.element.removeEventListener("mousemove", _);
+      this.element.removeEventListener("mousedown", down);
+      this.element.removeEventListener("mouseup", up);
     };
   }
 }

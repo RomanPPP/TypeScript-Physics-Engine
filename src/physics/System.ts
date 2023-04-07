@@ -2,7 +2,7 @@ import { Tuple, v3, vec3 } from "romanpppmath";
 import IEquation from "./models/IEquation";
 
 import config from "./config";
-
+import Debug from "./Debug";
 
 let arr : number[] = [];
 let o = 0;
@@ -117,12 +117,12 @@ export default class System {
     
     const lambda0 = new Array(n).fill(0)
     
-    if(this.useCache){
-      for(let i = 0; i < n; i++){
-        if(equations[i].constraint.prevLambda) lambda0[i] = equations[i].constraint.prevLambda
-      }
+    
+    for(let i = 0; i < n; i++)
+        if(equations[i].prevLambda) lambda0[i] = equations[i].prevLambda
       
-    }
+      
+    
     
     
     const Bl = new Array(numBodies).fill([0,0,0,0,0,0])
@@ -180,8 +180,7 @@ export default class System {
       numIter--
     }
     
-    if(log)document.getElementById('error').textContent =`lambda error : \n${norm(deltaLambda)}`;
-    _log(norm(deltaLambda))
+    if(log) Debug.data.SOLVER_ERROR = norm(deltaLambda)
     for(let i = 0; i < n; i++){
       equations[i].applyImpulse(lambda[i])
     }

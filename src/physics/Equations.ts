@@ -23,7 +23,7 @@ class ConstraintEquation implements IEquation {
   readonly rb: vec3;
   readonly n: vec3;
   readonly positionError: number;
-
+  prevLambda: number; 
   constraint: IConstraint;
 
   J: Tuple<vec3, 4>;
@@ -40,6 +40,7 @@ class ConstraintEquation implements IEquation {
     this.JM = null;
     this.B = null;
     this.constraint = constraint;
+    this.prevLambda = constraint.prevLambda
   }
 
   updateJacobian() {
@@ -179,12 +180,15 @@ class FrictionEquation extends ConstraintEquation {
   constructor(constraint: ContactConstraint, dir: number) {
     super(constraint);
     this.dir = dir;
+    this.prevLambda = this.constraint.prevTanLambdas[dir]
+    this.lambdaMax = this.prevLambda * (this.constraint.body1.friction + this.constraint.body2.friction)
+    this.lambdaMin = - this.lambdaMax
   }
   updateJacobian() {
     const { body1, body2, ra, rb } = this.constraint;
     const n = this.dir
-      ? v3.scale(this.constraint.j, -1)
-      : v3.scale(this.constraint.i, -1);
+      ? this.constraint.j
+      : this.constraint.i
     this.J = [v3.scale(n, -1), v3.cross(n, ra), n, v3.cross(rb, n)];
 
     if (body1.static) {
@@ -199,18 +203,19 @@ class FrictionEquation extends ConstraintEquation {
   updateRightPart() {
     const { body1, body2, ra, rb } = this.constraint;
     const n = this.dir
-      ? v3.scale(this.constraint.j, -1)
-      : v3.scale(this.constraint.i,-1);
+      ? this.constraint.j
+      : this.constraint.i
     const relativeVelocity = v3.diff(
       v3.sum(body2.velocity, v3.cross(body2.angularV, rb)),
       v3.sum(body1.velocity, v3.cross(body1.angularV, ra))
     );
 
-    const relativeVelocityNormalProjection = v3.dot(relativeVelocity, n);
-    this.bias = -relativeVelocityNormalProjection * 0.9;
+    let relativeVelocityNormalProjection = v3.dot(relativeVelocity, n);
+    //if(Math.abs(relativeVelocityNormalProjection) < 0.000001) relativeVelocityNormalProjection = 0
+    this.bias = -(relativeVelocityNormalProjection) ;
   }
   applyImpulse(lambda: number) {
-  
+    this.constraint.prevTanLambdas[this.dir] = lambda
     this.constraint.body1.applyImpulse(
       v3.scale(this.J[0], lambda),
       this.constraint.ra

@@ -10,4 +10,5 @@ const config = {
   SOLVER_ITERATIONS_NUM : 18,
   USE_CONTACT_CACHE : false
 };
+(window as any).config = config
 export default config;

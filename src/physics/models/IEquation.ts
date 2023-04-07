@@ -14,6 +14,7 @@ export default interface IEquation {
   constraint : IConstraint
   lambdaMin : number
   lambdaMax : number
+  prevLambda : number
   updateLeftPart(dt?: number): void;
   updateRightPart(dt?: number): void;
   applyImpulse(lambda : number) : void

@@ -7,11 +7,17 @@ import {
   createSphere
 
 } from "romanpppgraphics";
-
+import textureShaders from "./textureShader";
+import { getBoxUVs } from "./boxUVs";
 import FreeCam from "../../src/misc/FreeCam";
 import KeyInput from "../../src/misc/keyInput";
 import MouseInput from "../../src/misc/mouseInput";
-const mouseInput = new MouseInput();
+
+
+
+const canvas = document.getElementById("canvas") 
+if(!canvas) throw 'No canvas found'
+const mouseInput = new MouseInput(canvas);
 mouseInput.listen();
 const keyInput = new KeyInput();
 keyInput.listen();
@@ -28,7 +34,7 @@ const gl = (document.getElementById("canvas") as HTMLCanvasElement).getContext(
 ) as WebGL2RenderingContext;
 const context = new GLcontextWrapper(gl);
 
-const { PrimitiveRenderer, Drawer, ProgramInfo } = context;
+const { PrimitiveRenderer, Drawer, ProgramInfo, TextureInfo} = context;
 
 context.resizeCanvasToDisplaySize();
 const drawer = new Drawer();
@@ -43,21 +49,49 @@ const pointLightProgramInfo = new ProgramInfo(
   pointLightShaders.vert,
   pointLightShaders.frag
 );
+
+
 pointLightProgramInfo.compileShaders().createUniformSetters();
 
 const defaultProgramInfo = new ProgramInfo(
   defaultShaders.vert,
   defaultShaders.frag
 );
+
+
+
+const textureProgramInfo = new ProgramInfo(textureShaders.vert, textureShaders.frag)
+
+textureProgramInfo.compileShaders().createUniformSetters();
 defaultProgramInfo.compileShaders().createUniformSetters();
 const cube = PrimitiveRenderer.fromArrayData(createBox(1, 1, 1));
 
 const point = new PrimitiveRenderer();
 
+
+const texture1 = new TextureInfo();
+
+texture1.createTextureFromURL("resources/atlas.png");
+
+const settings = [
+  { x: -1, y:  1, zRot: 0, magFilter: gl.NEAREST, minFilter: gl.NEAREST,                 },
+  { x:  0, y:  1, zRot: 0, magFilter: gl.LINEAR,  minFilter: gl.LINEAR,                  },
+  { x:  1, y:  1, zRot: 0, magFilter: gl.LINEAR,  minFilter: gl.NEAREST_MIPMAP_NEAREST,  },
+  { x: -1, y: -1, zRot: 1, magFilter: gl.LINEAR,  minFilter: gl.LINEAR_MIPMAP_NEAREST,   },
+  { x:  0, y: -1, zRot: 1, magFilter: gl.LINEAR,  minFilter: gl.NEAREST_MIPMAP_LINEAR,   },
+  { x:  1, y: -1, zRot: 1, magFilter: gl.LINEAR,  minFilter: gl.LINEAR_MIPMAP_LINEAR,    },
+];
+const s = settings[0]
+gl.bindTexture(gl.TEXTURE_2D, texture1.texture)
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, s.minFilter);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, s.magFilter);
+const uvs = getBoxUVs(16,4)
+
 cube
   .createVAO()
   .setDrawer(drawer)
-  .setProgramInfo(pointLightProgramInfo)
+  .setProgramInfo(textureProgramInfo)
+  .bufferData('TEXCOORD_0', uvs)
   .setMode(4);
 
 
@@ -104,10 +138,14 @@ import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
 import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
 import { Constraint } from "../../src/physics/Constraints";
 import config from "../../src/physics/config";
-config.RIGID_BODY_MOVE_TRESHOLD = 0.005
-config.CONTACT_TRESHOLD = 0.01
+import Debug from "../../src/physics/Debug";
+config.RIGID_BODY_MOVE_TRESHOLD = 0.001
+config.CONTACT_TRESHOLD = 0.00001
+config.CLIP_BIAS = 0.01
+config.CONTACT_MANIFOLD_KEEP_TRESHOLD = 0.001
+
 const sim = new Simulation();
-const body = new RigidBody(new Box(5, 5, 5));
+const body = new RigidBody(new Box(1, 1, 1));
 
 const floor = {physics : new RigidBody(new Box(100,5,100)), sprite : cube, uniforms : {u_color : [1,0,1,1]}}
 
@@ -150,7 +188,7 @@ const box = { physics: new RigidBody(new Sphere(5)), sprite: sphere, uniforms : 
   box.physics.translate([0,5,-30]);
   box.physics.setMass(32);
   box.physics.addAcceleration([0, -9, 0]);
- box.physics.addVelocity([0,0,3])
+ box.physics.addVelocity([0,0,10])
   box.physics.addAngularV([1,1,1])
   sim.addObject(box.physics);
   objectsToDraw.push(box);
@@ -167,19 +205,16 @@ const box2 = { physics: new RigidBody(new Box(5)), sprite: cube, uniforms : {u_c
   objectsToDraw.push(box2);
 */
 let lastCall = Date.now();
-const fps = document.querySelector("#fps") as HTMLElement;
-const time = document.querySelector("#time") as HTMLElement;
-const error = document.getElementById('error') as HTMLElement
-const numIter = 1;
+
 const startTime = Date.now();
 const loop = () => {
   player.tick();
   sim.tick(0.015)
   const curentTime = Date.now();
   const delta = curentTime - lastCall;
-  const totalTime = curentTime - startTime;
-  fps.textContent = Number((1 / delta) * 1000).toString();
-  time.textContent = sim.broadPhaseCollisions.map(e => `${e[0]} : ${e[1].join(',')}`).join('\n');
+ 
+  Debug.data.FPS = Math.floor(Number((1 / delta) * 1000));
+  Debug.data.RUNTIME = (curentTime - startTime)/1000
 
   lastCall = curentTime;
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

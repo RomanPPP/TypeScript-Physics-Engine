@@ -10,7 +10,7 @@ module.exports = {
     port: 8080,
   },
   resolve: {
-    extensions: [".ts", ".js", ".json"],
+    extensions: [".ts", ".js", ".json", ".tsx"],
   },
   module: {
     rules: [
@@ -21,6 +21,10 @@ module.exports = {
     ],
   },
   entry: {
+    ui : {
+      import : "./ui/index.tsx",
+      filename : './ui.js'
+    },
     wall: {
       import: "./demo/ball/ball.ts",
       filename: "./ball.js",
