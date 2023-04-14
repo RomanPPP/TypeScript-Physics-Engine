@@ -5,43 +5,38 @@ import IRigidBody from "./models/IRigidBody";
 import config from "./config";
 const {RIGID_BODY_MOVE_TRESHOLD, RIGID_BODY_AABB_BIAS} = config
 class RigidBody extends EventEmitter implements IRigidBody {
+ 
   static: boolean;
   collider: ICollider;
   mass: number;
   inverseMass: number;
   velocity: vec3;
-  angularV: vec3;
+  omega: vec3;
   pseudoVelocity: vec3;
   pseudoAngularV: vec3;
   acceleration: vec3;
-  inverseInertia: mat3;
+  inverseInertiaTensor: mat3;
   id: number;
   friction: number;
-  group: string;
-  dof : Tuple<0 | 1, 6>
+  group: number;
   needToUpdate: boolean;
-  aabbNode : null
   updateEventFunctions : Function[]
-  static config = {
-    RIGID_BODY_MOVE_TRESHOLD : 0.005,
-    RIGID_BODY_AABB_BIAS : 0.00001
-  }
-  static setRIGID_BODY_MOVE_TRESHOLD(RIGID_BODY_MOVE_TRESHOLD : number){
-    RigidBody.config.RIGID_BODY_MOVE_TRESHOLD = RIGID_BODY_MOVE_TRESHOLD
-  }
+ 
   static lastId = 1
+
   constructor(collider : ICollider) {
     super();
     this.static = false;
     this.collider = collider;
+    
     this.mass = 1;
     this.inverseMass = 1 / this.mass;
     this.velocity = [0, 0, 0];
     this.pseudoVelocity = [0, 0, 0];
     this.pseudoAngularV = [0, 0, 0];
     this.acceleration = [0, 0, 0];
-    this.angularV = [0, 0, 0];
-    this.inverseInertia = collider.getInverseInertiaTensor(this.mass);
+    this.omega = [0, 0, 0];
+    this.inverseInertiaTensor = collider.getInverseInertiaTensor(this.mass);
     this.id = RigidBody.lastId++;
     this.friction = 5;
     this.updateEventFunctions = []
@@ -49,15 +44,118 @@ class RigidBody extends EventEmitter implements IRigidBody {
     this.group = null;
     this.needToUpdate = false
   }
+  getId() {
+    return this.id
+  }
 
+  getGroup(): number {
+    return this.group
+  }
+  setGroup(groupId : number){
+    this.group = groupId
+  }
+  getMass(): number {
+    return this.mass
+  }
+  getInverseMass(): number {
+    return this.inverseMass
+  }
+  getTranslation(): vec3 {
+    return this.getCollider().getTranslation()
+  }
+  getCollider(): ICollider {
+    return this.collider
+  }
+  isStatic(): boolean {
+    return this.static
+  }
+  getRotation() : mat3{
+    return this.getCollider().getRmatrix()
+  }
+  getVelocity(): vec3 {
+    return this.velocity
+  }
+  getAcceleration(): [number, number, number] {
+    return this.acceleration
+  }
+  getAngularVelocity(): [number, number, number] {
+    return this.omega
+  }
+  getFriction(): number {
+    return this.friction
+  }
+  getInverseInertiaTensor() {
+    return this.inverseInertiaTensor;
+  }
+  getAABB() : AABB {
+    const aabb = this.collider.getAABB();
+    const velocity = this.velocity;
+    const tr : vec3 = [RIGID_BODY_AABB_BIAS, RIGID_BODY_AABB_BIAS, RIGID_BODY_AABB_BIAS];
+    aabb.min = v3.diff(aabb.min, tr);
+    aabb.max = v3.sum(aabb.max, tr);
+    return aabb;
+  }
+  addVelocity(v : vec3) {
+    this.velocity = v3.sum(this.velocity, v);
+  }
+  addAngularVelocity(v : vec3) {
+    this.omega = v3.sum(this.omega, v);
+  }
+  addAcceleration(v : vec3) {
+    this.acceleration = v3.sum(this.acceleration, v);
+  }
+
+  
+  translate(translation : vec3) {
+    this.collider.translate(translation);
+
+    this.needToUpdate = true
+    this.emitUpdate();
+  }
+  rotate(rotation : vec3) {
+    this.collider.rotate(rotation);
+    this.needToUpdate = true
+    this.emitUpdate();
+  }
+
+  setId(id: number): void {
+    this.id = id
+  }
+  setMass(mass : number) {
+    this.mass = mass;
+    this.inverseMass = 1 / this.mass;
+  }
+  setFriction(f: number): void {
+    this.friction = f
+  }
+  setRotation(r: vec3): void {
+    this.collider.setRotation(r)
+    this.needToUpdate = true
+    this.emitUpdate();
+  }
+  setTranslation(t: [number, number, number]): void {
+    this.collider.setTranslation(t);
+
+    this.needToUpdate = true
+    this.emitUpdate();
+  }
+  setVelocity(v: [number, number, number]): void {
+    this.velocity = v
+  }
+  setAngularVelocity(v: [number, number, number]): void {
+    this.omega = v
+  }
+  setStatic(b: boolean): void {
+    this.static = b
+  }
   integrateRK4(dt : number) {
-    const { acceleration, velocity, angularV } = this;
+    const { acceleration, velocity, omega } = this;
 
     const _translation = v3.scale(
       v3.sum(velocity, v3.scale(acceleration, (2 / 3) * dt)),
       dt
     );
-    const _rotation = v3.scale(angularV, dt/2);
+    const _rotation = v3.scale(omega, dt/2);
     const deltaVelocity = v3.scale(acceleration, dt);
 
     if (v3.norm(_translation) > config.RIGID_BODY_MOVE_TRESHOLD) this.translate(_translation);
@@ -86,7 +184,7 @@ class RigidBody extends EventEmitter implements IRigidBody {
   integrateVelocities(dt : number) {
     const translation = v3.scale(v3.diff(this.velocity, v3.scale(this.acceleration, dt/3)), dt);
     if (v3.norm(translation) > config.RIGID_BODY_MOVE_TRESHOLD) this.translate(translation);
-    const rotation = v3.scale(this.angularV, dt/2);
+    const rotation = v3.scale(this.omega, dt/2);
     if (v3.norm(rotation) > config.RIGID_BODY_MOVE_TRESHOLD) this.rotate(rotation);
   }
   integrateForces(dt : number) {
@@ -95,35 +193,19 @@ class RigidBody extends EventEmitter implements IRigidBody {
     this.velocity = v3.sum(this.velocity, deltaSpeed);
   }
   updateInverseInertia() {
-    this.inverseInertia = this.collider.getInverseInertiaTensor(this.mass);
+    this.inverseInertiaTensor = this.collider.getInverseInertiaTensor(this.mass);
   }
-  getInverseInertiaTensor() {
-    return this.collider.getInverseInertiaTensor(this.mass);
-  }
-  setMass(mass : number) {
-    this.mass = mass;
-    this.inverseMass = 1 / this.mass;
-  }
-  translate(translation : vec3) {
-    this.collider.translate(translation);
-
-    this.needToUpdate = true
-    this.emitUpdate();
-  }
-  rotate(rotation : vec3) {
-    this.collider.rotate(rotation);
-    this.needToUpdate = true
-    this.emitUpdate();
-  }
+  
+  
 
   applyImpulse(impulse :vec3, point : vec3) {
     if (this.static) return;
     this.velocity = v3.sum(this.velocity, v3.scale(impulse, this.inverseMass));
     const angularImpulse = m3.transformPoint(
-      this.inverseInertia,
+      this.inverseInertiaTensor,
       v3.cross(point, impulse)
     );
-    this.angularV = v3.sum(this.angularV, angularImpulse);
+    this.omega = v3.sum(this.omega, angularImpulse);
   }
   applyPseudoImpulse(impulse : vec3, point : vec3) {
     if (this.static) return;
@@ -132,20 +214,12 @@ class RigidBody extends EventEmitter implements IRigidBody {
       v3.scale(impulse, this.inverseMass)
     );
     const angularImpulse = m3.transformPoint(
-      this.inverseInertia,
+      this.inverseInertiaTensor,
       v3.cross(point, impulse)
     );
     this.pseudoAngularV = v3.sum(this.pseudoAngularV, angularImpulse);
   }
-  addVelocity(v : vec3) {
-    this.velocity = v3.sum(this.velocity, v);
-  }
-  addAngularV(v : vec3) {
-    this.angularV = v3.sum(this.angularV, v);
-  }
-  addAcceleration(v : vec3) {
-    this.acceleration = v3.sum(this.acceleration, v);
-  }/*
+  /*
   applyAngularImpulse(radius : number, axis, value) {
     const dir = normalize([
       axis[1] + axis[2],
@@ -174,9 +248,7 @@ class RigidBody extends EventEmitter implements IRigidBody {
       if(velocity[2] < -10) aabb.min[2] += velocity[2]*/
     return aabb;
   }
-  getAABB() {
-    return this.collider.getAABB();
-  }
+ 
   onUpdate(func : Function){
     if(this.updateEventFunctions.indexOf(func) > -1)
       return
@@ -191,7 +263,173 @@ class RigidBody extends EventEmitter implements IRigidBody {
       })
   }
 }
+class TerrainSegment implements IRigidBody{
+    static id = 0
+    group : number 
+    collider : ICollider
+    friction : number
+    updateEventFunctions : Function[]
+    constructor(collider : ICollider){
+      this.collider = collider
+      this.group = null
+      this.friction = 5
+      this.updateEventFunctions = []
+    }
+    getId() {
+      return TerrainSegment.id
+    }
+  
+    getGroup(): number {
+      return this.group
+    }
+    setGroup(groupId : number){
+      this.group = groupId
+    }
+    getMass(): number {
+      return 1
+    }
+    getInverseMass(): number {
+      return 1
+    }
+    getTranslation(): vec3 {
+      return this.getCollider().getTranslation()
+    }
+    getCollider(): ICollider {
+      return this.collider
+    }
+    isStatic(): boolean {
+      return true
+    }
+    getRotation() : mat3{
+      return this.getCollider().getRmatrix()
+    }
+    getVelocity(): vec3 {
+      return [0,0,0]
+    }
+    getAcceleration(): [number, number, number] {
+      return [0,0,0]
+    }
+    getAngularVelocity(): [number, number, number] {
+      return [0,0,0]
+    }
+    getFriction(): number {
+      return this.friction
+    }
+    getInverseInertiaTensor() {
+      return m3.identity()
+    }
+    getAABB() : AABB {
+      const aabb = this.collider.getAABB();
 
+      const tr : vec3 = [RIGID_BODY_AABB_BIAS, RIGID_BODY_AABB_BIAS, RIGID_BODY_AABB_BIAS];
+      aabb.min = v3.diff(aabb.min, tr);
+      aabb.max = v3.sum(aabb.max, tr);
+      return aabb;
+    }
+    addVelocity(v : vec3) {
+    }
+    addAngularVelocity(v : vec3) {
+   
+    }
+    addAcceleration(v : vec3) {
+     
+    }
+  
+    
+    translate(translation : vec3) {
+      this.collider.translate(translation);
+  
+      
+      this.emitUpdate();
+    }
+    rotate(rotation : vec3) {
+      this.collider.rotate(rotation);
+      
+      this.emitUpdate();
+    }
+  
+    setId(id: number): void {
+    
+    }
+    setMass(mass : number) {
+     
+    }
+    setFriction(f: number): void {
+      this.friction = f
+    }
+    setRotation(r: vec3): void {
+      this.collider.setRotation(r)
+      
+      this.emitUpdate();
+    }
+    setTranslation(t: [number, number, number]): void {
+      
+      this.emitUpdate();
+    }
+    setVelocity(v: [number, number, number]): void {
+     
+    }
+    setAngularVelocity(v: [number, number, number]): void {
+     
+    }
+    setStatic(b: boolean): void {
+      
+    }
+    integrateRK4(dt : number) {
+      
+    }
+    integratePseudoVelocities(dt : number) {
+    
+    }
+    addPseudoVelocity(v : vec3) {
+      }
+    addPseudoAngularV(v : vec3) {
+     }
+    integrateVelocities(dt : number) {
+    }
+    integrateForces(dt : number) {
+     
+    }
+    updateInverseInertia() {
+         }
+    
+    
+  
+    applyImpulse(impulse :vec3, point : vec3) {
+   
+    }
+    applyPseudoImpulse(impulse : vec3, point : vec3) {
+      
+    }
+    /*
+    applyAngularImpulse(radius : number, axis, value) {
+      const dir = normalize([
+        axis[1] + axis[2],
+        axis[2] - axis[0],
+        -axis[0] - axis[1],
+      ]);
+      const rad = vector.cross(dir, axis);
+      const globalDir = scale(dir, value);
+      const globalRad = scale(rad, radius);
+  
+      this.applyImpulse(globalDir, globalRad);
+    }*/
+    
+   
+    onUpdate(func : Function){
+      if(this.updateEventFunctions.indexOf(func) > -1)
+        return
+      this.updateEventFunctions.push(func)
+      return () =>{
+        this.updateEventFunctions.filter(fn => fn !== func)
+      }
+    }
+    emitUpdate() {
+      this.updateEventFunctions.forEach(fn => {
+        fn()
+      })
+  }
+}
 class Player extends RigidBody {
   constructor(collider : ICollider) {
     super(collider);
@@ -210,4 +448,4 @@ class Player extends RigidBody {
   
   
 }
-export { RigidBody, Player };
+export { RigidBody, Player, TerrainSegment};

@@ -14,6 +14,9 @@ const clamp = (v: number, min: number, max: number) => {
 
 type vec6 = Tuple<number, 6>;
 
+
+const nullVec : vec3 = [0,0,0]
+
 class ConstraintEquation implements IEquation {
   static biasMultiplier = 0.5;
 
@@ -25,20 +28,22 @@ class ConstraintEquation implements IEquation {
   readonly positionError: number;
   prevLambda: number; 
   constraint: IConstraint;
-
-  J: Tuple<vec3, 4>;
-  _J: Tuple<vec6, 2>;
-  JM: Tuple<vec3, 4>;
-  B: Tuple<vec6, 2>;
+  J1 : vec3
+  J2 : vec3
+  J3 : vec3
+  J4 : vec3
+  JM1 : vec3
+  JM2 : vec3
+  JM3 : vec3
+  JM4 : vec3
+ 
   effMass: number;
 
   bias: number;
   lambdaMax: number;
   lambdaMin: number;
   constructor(constraint: IConstraint) {
-    this.J = null;
-    this.JM = null;
-    this.B = null;
+   
     this.constraint = constraint;
     this.prevLambda = constraint.prevLambda
   }
@@ -46,15 +51,25 @@ class ConstraintEquation implements IEquation {
   updateJacobian() {
     const { body1, body2, ra, rb, n } = this.constraint;
 
-    this.J = [v3.scale(n, -1), v3.cross(n, ra), n, v3.cross(rb, n)];
-
-    if (body1.static) {
-      this.J[0] = [0, 0, 0];
-      this.J[1] = [0, 0, 0];
+    
+ 
+    if (body1.isStatic()) {
+      this.J1 = nullVec
+      this.J2 =nullVec
     }
-    if (body2.static) {
-      this.J[2] = [0, 0, 0];
-      this.J[3] = [0, 0, 0];
+    else {
+      this.J1 = v3.scale(n, -1)
+      this.J2 = v3.cross(n, ra)
+    }
+    if (body2.isStatic()) {
+
+      this.J3 = nullVec
+      this.J4 =  nullVec
+    }
+    else{
+     
+      this.J3 = n
+      this.J4 =  v3.cross(rb, n)
     }
     /*  const dof1 = body1.dof;
     const dof2 = body2.dof;
@@ -78,33 +93,22 @@ class ConstraintEquation implements IEquation {
   updateLeftPart(dt?: number) {
     this.updateJacobian();
     const { body1, body2 } = this.constraint;
-    const I1 = body1.inverseInertia;
-    const I2 = body2.inverseInertia;
-    let M1 = body1.inverseMass;
-    let M2 = body2.inverseMass;
-    this.JM = [
-      v3.scale(this.J[0], M1),
-      m3.transformPoint(I1, this.J[1]),
-      v3.scale(this.J[2], M2),
-      m3.transformPoint(I2, this.J[3]),
-    ];
-
+    const I1 = body1.getInverseInertiaTensor();
+    const I2 = body2.getInverseInertiaTensor();
+    let M1 = body1.getInverseMass();
+    let M2 = body2.getInverseMass();
+    
+    this.JM1 =  v3.scale(this.J1, M1)
+    this.JM2 = m3.transformPoint(I1, this.J2)
+    this.JM3 = v3.scale(this.J3, M2)
+    this.JM4 = m3.transformPoint(I2, this.J4)
     //JMJ* = JB; B = MJ* as 2 vec6, _J = Jacobian as 2 vec6
-    this._J = [
-      [...this.J[0], ...this.J[1]],
-      [...this.J[2], ...this.J[3]],
-    ];
-
-    this.B = [
-      [...this.JM[0], ...this.JM[1]],
-      [...this.JM[2], ...this.JM[3]],
-    ];
-
+    
     this.effMass =
-      v3.dot(this.J[0], this.JM[0]) +
-      v3.dot(this.JM[1], this.J[1]) +
-      v3.dot(this.J[2], this.JM[2]) +
-      v3.dot(this.JM[3], this.J[3]);
+      v3.dot(this.J1, this.JM1) +
+      v3.dot(this.JM2, this.J2) +
+      v3.dot(this.J3, this.JM3) +
+      v3.dot(this.JM4, this.J4);
   }
 
   updateRightPart(dt: number) {
@@ -112,8 +116,8 @@ class ConstraintEquation implements IEquation {
       this.constraint;
 
     const relativeVelocity = v3.diff(
-      v3.sum(body2.velocity, v3.cross(body2.angularV, rb)),
-      v3.sum(body1.velocity, v3.cross(body1.angularV, ra))
+      v3.sum(body2.getVelocity(), v3.cross(body2.getAngularVelocity(), rb)),
+      v3.sum(body1.getVelocity(), v3.cross(body1.getAngularVelocity(), ra))
     );
     const relativeVelocityNormalProjection = v3.dot(relativeVelocity, n);
     this.bias =
@@ -122,24 +126,24 @@ class ConstraintEquation implements IEquation {
   }
 
   applyImpulse(lambda: number) {
-    console.log(lambda);
+    
     this.constraint.prevLambda = lambda;
     this.constraint.body1.applyImpulse(
-      v3.scale(this.J[0], lambda),
+      v3.scale(this.J1, lambda),
       this.constraint.ra
     );
     this.constraint.body2.applyImpulse(
-      v3.scale(this.J[2], lambda),
+      v3.scale(this.J3, lambda),
       this.constraint.rb
     );
   }
   applyPseudoImpulse(lambda: number) {
     this.constraint.body1.applyPseudoImpulse(
-      v3.scale(this.J[0], lambda),
+      v3.scale(this.J1, lambda),
       this.constraint.ra
     );
     this.constraint.body2.applyPseudoImpulse(
-      v3.scale(this.J[2], lambda),
+      v3.scale(this.J3, lambda),
       this.constraint.rb
     );
   }
@@ -151,8 +155,8 @@ class ContactEquation extends ConstraintEquation {
       this.constraint;
 
     const relativeVelocity = v3.diff(
-      v3.sum(body2.velocity, v3.cross(body2.angularV, rb)),
-      v3.sum(body1.velocity, v3.cross(body1.angularV, ra))
+      v3.sum(body2.getVelocity(), v3.cross(body2.getAngularVelocity(), rb)),
+      v3.sum(body1.getVelocity(), v3.cross(body1.getAngularVelocity(), ra))
     );
 
     const relativeVelocityNormalProjection = v3.dot(relativeVelocity, n);
@@ -160,18 +164,7 @@ class ContactEquation extends ConstraintEquation {
       (Math.max(0, positionError - treshold) / dt) * biasFactor -
       relativeVelocityNormalProjection;
   }
-  applyImpulse(lambda: number) {
-    //console.log(lambda)
-    this.constraint.prevLambda = lambda;
-    this.constraint.body1.applyImpulse(
-      v3.scale(this.J[0], lambda),
-      this.constraint.ra
-    );
-    this.constraint.body2.applyImpulse(
-      v3.scale(this.J[2], lambda),
-      this.constraint.rb
-    );
-  }
+
 }
 
 class FrictionEquation extends ConstraintEquation {
@@ -181,7 +174,7 @@ class FrictionEquation extends ConstraintEquation {
     super(constraint);
     this.dir = dir;
     this.prevLambda = this.constraint.prevTanLambdas[dir]
-    this.lambdaMax = this.prevLambda * (this.constraint.body1.friction + this.constraint.body2.friction)
+    this.lambdaMax = this.constraint.prevLambda * (this.constraint.body1.getFriction() + this.constraint.body2.getFriction())*10
     this.lambdaMin = - this.lambdaMax
   }
   updateJacobian() {
@@ -189,15 +182,27 @@ class FrictionEquation extends ConstraintEquation {
     const n = this.dir
       ? this.constraint.j
       : this.constraint.i
-    this.J = [v3.scale(n, -1), v3.cross(n, ra), n, v3.cross(rb, n)];
+   
 
-    if (body1.static) {
-      this.J[0] = [0, 0, 0];
-      this.J[1] = [0, 0, 0];
+  
+    if (body1.isStatic()) {
+     
+      this.J1 = nullVec
+      this.J2 =nullVec
     }
-    if (body2.static) {
-      this.J[2] = [0, 0, 0];
-      this.J[3] = [0, 0, 0];
+    else {
+      this.J1 = v3.scale(n, -1)
+      this.J2 = v3.cross(n, ra)
+    }
+    if (body2.isStatic()) {
+   
+      this.J3 = nullVec
+      this.J4 =  nullVec
+    }
+    else{
+     
+      this.J3 = n
+      this.J4 =  v3.cross(rb, n)
     }
   }
   updateRightPart() {
@@ -206,8 +211,8 @@ class FrictionEquation extends ConstraintEquation {
       ? this.constraint.j
       : this.constraint.i
     const relativeVelocity = v3.diff(
-      v3.sum(body2.velocity, v3.cross(body2.angularV, rb)),
-      v3.sum(body1.velocity, v3.cross(body1.angularV, ra))
+      v3.sum(body2.getVelocity(), v3.cross(body2.getAngularVelocity(), rb)),
+      v3.sum(body1.getVelocity(), v3.cross(body1.getAngularVelocity(), ra))
     );
 
     let relativeVelocityNormalProjection = v3.dot(relativeVelocity, n);
@@ -217,11 +222,11 @@ class FrictionEquation extends ConstraintEquation {
   applyImpulse(lambda: number) {
     this.constraint.prevTanLambdas[this.dir] = lambda
     this.constraint.body1.applyImpulse(
-      v3.scale(this.J[0], lambda),
+      v3.scale(this.J1, lambda),
       this.constraint.ra
     );
     this.constraint.body2.applyImpulse(
-      v3.scale(this.J[2], lambda),
+      v3.scale(this.J3, lambda),
       this.constraint.rb
     );
   }
@@ -300,8 +305,8 @@ class RotationalConstraint extends Constraint {
     J[3][0] *= dof2[3];
     J[3][1] *= dof2[4];
     J[3][2] *= dof2[5];
-    const I1 = body1.inverseInertia;
-    const I2 = body2.inverseInertia;
+    const I1 = body1.getInverseInertiaTensor();
+    const I2 = body2.getInverseInertiaTensor();
     this.J = J;
     this.JM = [
       [0, 0, 0],
@@ -324,7 +329,7 @@ class RotationalConstraint extends Constraint {
     const { body1, body2 } = this;
 
     this.bias =
-      -v3.dot(this.J[1], body1.angularV) + v3.dot(this.J[3], body2.angularV);
+      -v3.dot(this.J[1], body1.getAngularVelocity()) + v3.dot(this.J[3], body2.getAngularVelocity());
   }
   applyResolvingImpulse(lambda) {
     const { body1, body2 } = this;
@@ -378,10 +383,10 @@ class Joint extends Constraint {
     J[3][0] *= dof2[3];
     J[3][1] *= dof2[4];
     J[3][2] *= dof2[5];
-    const I1 = body1.inverseInertia;
-    const I2 = body2.inverseInertia;
-    let M1 = body1.inverseMass;
-    let M2 = body2.inverseMass;
+    const I1 = body1.getInverseInertiaTensor();
+    const I2 = body2.getInverseInertiaTensor();
+    let M1 = body1.getInverseMass();
+    let M2 = body2.getInverseMass();
     this.J = J;
     this.JM = [
       scale(this.J[0], M1),
@@ -408,8 +413,8 @@ class Joint extends Constraint {
     const { body1, body2, ra, rb, n, penDepth, treshold, biasFactor } = this;
 
     const relativeVelocity = diff(
-      sum(body2.velocity, cross(body2.angularV, rb)),
-      sum(body1.velocity, cross(body1.angularV, ra))
+      sum(body2.getVelocity(), cross(body2.getAngularVelocity(), rb)),
+      sum(body1.getVelocity(), cross(body1.getAngularVelocity(), ra))
     );
 
     const relativeVelocityNormalProjection = dot(relativeVelocity, n);

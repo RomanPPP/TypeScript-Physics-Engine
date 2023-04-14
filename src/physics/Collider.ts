@@ -1,5 +1,6 @@
-import { mat3, v3, vec3, m3, AABB, m4, Tuple } from "romanpppmath";
+import { mat3, v3, vec3, m3, AABB, m4, Tuple, mat4 } from "romanpppmath";
 import ICollider from "./models/ICollider";
+import IRigidBody from "./models/IRigidBody";
 
 const xAxis: vec3 = [1, 0, 0];
 const yAxis: vec3 = [0, 1, 0];
@@ -9,21 +10,54 @@ const yAxisNegative = v3.scale(yAxis, -1);
 const zAxisNegative = v3.scale(zAxis, -1);
 
 class Collider implements ICollider {
+  static lastId = 1
   Rmatrix: mat3;
   RmatrixInverse: mat3;
   pos: vec3;
   type: string;
+  id : number
+  rigidBody : IRigidBody
   constructor() {
     this.Rmatrix = m3.identity();
     this.RmatrixInverse = m3.identity();
     this.pos = [0, 0, 0];
     this.type = "point";
+    this.id = Collider.lastId++
+  }
+  getRigidBody(): IRigidBody {
+    return this.rigidBody
+  }
+  setRigidBody(body : IRigidBody){
+    this.rigidBody = body
+  }
+  getType() {
+    return this.type
+  }
+  getRmatrix(){
+    return this.Rmatrix
+  }
+  setRmatrix(matrix: mat3) {
+    this.Rmatrix = [...matrix];
+
+    this.RmatrixInverse = m3.transpose(matrix);
+  }
+  getRmatrixInverse() {
+      return this.RmatrixInverse
+  }
+  getId(){
+    return this.id
+  }
+  setId(id: number): void {
+    this.id = id
   }
   translate(v: vec3) {
     this.pos = v3.sum(this.pos, v);
   }
   setTranslation(translation: vec3) {
     this.pos = [...translation];
+  }
+  getTranslation() {
+    return this.pos
   }
   rotate(r: vec3) {
     this.Rmatrix = m3.xRotate(this.Rmatrix, r[0]);
@@ -47,11 +81,7 @@ class Collider implements ICollider {
     const minZ = this.support(zAxisNegative)[2];
     return new AABB([minX, minY, minZ], [maxX, maxY, maxZ]);
   }
-  setRmatrix(matrix: mat3) {
-    this.Rmatrix = [...matrix];
-
-    this.RmatrixInverse = m3.transpose(matrix);
-  }
+  
   getM4() {
     const m = m4.m3Tom4(this.Rmatrix);
     m[12] = this.pos[0];
@@ -107,9 +137,11 @@ class Box extends Collider {
   ];
   min: vec3;
   max: vec3;
+  scale: vec3;
 
   constructor(a = 1, b = 1, c = 1) {
     super();
+    this.scale = [a, b, c];
     this.min = [-a / 2, -b / 2, -c / 2];
     this.max = [a / 2, b / 2, c / 2];
   }
@@ -259,7 +291,6 @@ class Cylinder extends Collider {
     ]);
   }
   support(dir: vec3) {
-
     const _dir = m3.transformPoint(this.RmatrixInverse, dir);
 
     const dir_xz: vec3 = [_dir[0], 0, _dir[2]];
@@ -277,7 +308,7 @@ class Cylinder extends Collider {
     const { radius, height } = this;
     return m4.scale(m, radius, height, radius);
   }
-  getClosestFaceByNormal(normal : vec3) {
+  getClosestFaceByNormal(normal: vec3) {
     const { Rmatrix, RmatrixInverse } = this;
     const _normal = m3.transformPoint(RmatrixInverse, v3.scale(normal, -1));
     const m = this.getM4();
@@ -291,16 +322,16 @@ class Cylinder extends Collider {
         m4.transformPoint(m, [_normal[0], -0.5, _normal[2]]),
       ];
 
-      return {vertices, normal : m3.transformPoint(Rmatrix, localNormal)};
+      return { vertices, normal: m3.transformPoint(Rmatrix, localNormal) };
     }
     const localNormal = v3.scale([0, 1, 0], sign);
     const vertices = this.circlePoints.map((p) =>
       m4.transformPoint(m, [p[0], sign * 0.5, p[2]])
     );
 
-    return {vertices , normal : m3.transformPoint(Rmatrix, localNormal)};
+    return { vertices, normal: m3.transformPoint(Rmatrix, localNormal) };
   }
-  getInverseInertiaTensor(mass : number) {
+  getInverseInertiaTensor(mass: number) {
     const { radius, height } = this;
     const i1 = (mass / 12) * (3 * radius * radius + height * height);
 
@@ -321,4 +352,9 @@ class Cylinder extends Collider {
     );
   }
 }
+
+
+
+
+
 export { Box, Sphere, Cylinder };

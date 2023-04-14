@@ -177,7 +177,7 @@ const loop = () => {
   const delta = curentTime - lastCall;
   const totalTime = curentTime - startTime;
   fps.textContent = Number((1 / delta) * 1000).toString();
-  time.textContent = `Collisions : \n${sim.broadPhaseCollisions.map(e => `${e[0]} : ${e[1].join(',')}`).join('\n')}`;
+  //time.textContent = `Collisions : \n${sim.broadPhaseCollisions.map(e => `${e[0]} : ${e[1].join(',')}`).join('\n')}`;
   time2.textContent = `Run time : ${totalTime/1000}`
   lastCall = curentTime;
   gl.clearColor(0.7,0.9,0.9,1)

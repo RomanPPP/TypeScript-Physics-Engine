@@ -4,12 +4,16 @@ import IConstraint from "./IConstraint";
 import IRigidBody from "./IRigidBody";
 export default interface IEquation {
  
-  J: Tuple<vec3, 4>;
-  _J: Tuple<Tuple<number, 6>, 2>;
-  JM: Tuple<vec3, 4>;
-  B: Tuple<Tuple<number, 6>, 2>;
+ 
   effMass: number;
-  
+  J1 : vec3
+  J2 : vec3
+  J3 : vec3
+  J4 : vec3
+  JM1 : vec3
+  JM2 : vec3
+  JM3 : vec3
+  JM4 : vec3
   bias: number;
   constraint : IConstraint
   lambdaMin : number

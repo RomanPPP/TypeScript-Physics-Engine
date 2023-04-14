@@ -142,7 +142,7 @@ function gjk(
 
   let mtv = [0, 0, 0];
 
-  props.search_dir = diff(coll1.pos, coll2.pos);
+  props.search_dir = diff(coll1.getTranslation(), coll2.getTranslation());
   const c_origin1 = coll1.support(scale(props.search_dir, -1));
   const c_origin2 = coll2.support(props.search_dir);
   props.c = diff(c_origin2, c_origin1);
@@ -437,12 +437,12 @@ const getContacts = (
   const { PA, PB, n, positionError } = contactData;
 
 
-  if (coll1.type === "sphere" || coll2.type === "sphere") {
-    const rb = diff(PB, coll2.pos);
-    const ra = diff(PA, coll1.pos);
+  if (coll1.getType() === "sphere" || coll2.getType() === "sphere") {
+    const rb = diff(PB, coll2.getTranslation());
+    const ra = diff(PA, coll1.getTranslation());
 
-    const raLocal = m3.transformPoint(coll1.RmatrixInverse, ra);
-    const rbLocal = m3.transformPoint(coll2.RmatrixInverse, rb);
+    const raLocal = m3.transformPoint(coll1.getRmatrixInverse(), ra);
+    const rbLocal = m3.transformPoint(coll2.getRmatrixInverse(), rb);
     const i: vec3 = [n[1] + n[2], n[2] - n[0], -n[0] - n[1]];
 
     const j = cross(scale(n, -1), i);
@@ -500,11 +500,11 @@ const getContacts = (
     );
     if (!isPointBehindPlane(plane, PB, -1)) return;
 
-    const rb = diff(PB, coll2.pos);
-    const ra = diff(PA, coll1.pos);
+    const rb = diff(PB, coll2.getTranslation());
+    const ra = diff(PA, coll1.getTranslation());
     const positionError = -dot(diff(PB, PA), n);
-    const raLocal = m3.transformPoint(coll1.RmatrixInverse, ra);
-    const rbLocal = m3.transformPoint(coll2.RmatrixInverse, rb);
+    const raLocal = m3.transformPoint(coll1.getRmatrixInverse(), ra);
+    const rbLocal = m3.transformPoint(coll2.getRmatrixInverse(), rb);
 
     features.push(
       {
@@ -514,10 +514,10 @@ const getContacts = (
   });
 
   if (features.length === 0) {
-    const rb = diff(PB, coll2.pos);
-    const ra = diff(PA, coll1.pos);
-    const raLocal = m3.transformPoint(coll1.RmatrixInverse, ra);
-    const rbLocal = m3.transformPoint(coll2.RmatrixInverse, rb);
+    const rb = diff(PB, coll2.getTranslation());
+    const ra = diff(PA, coll1.getTranslation());
+    const raLocal = m3.transformPoint(coll1.getRmatrixInverse(), ra);
+    const rbLocal = m3.transformPoint(coll2.getRmatrixInverse(), rb);
     features.push(
       {
         ra, rb, n, PA, PB, positionError, i, j, raLocal, rbLocal

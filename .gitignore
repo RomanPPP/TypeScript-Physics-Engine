@@ -7,6 +7,8 @@ src/physics/noise.js
 src/misc/objects.js
 src/misc/config.js
 src/misc/Entity.js
+src/models/ISpatialDB.ts
+src/HashGrid.ts
 lib
 
 shader.js

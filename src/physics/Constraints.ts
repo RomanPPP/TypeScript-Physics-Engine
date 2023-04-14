@@ -52,20 +52,20 @@ export class Constraint implements IConstraint {
     this.lambdaMax = opt.lambdaMax || 99999999;
     this.prevLambda = 0;
 
-    const collider1 = this.body1.collider;
-    const collider2 = this.body2.collider;
-    this.ra = m3.transformPoint(collider1.Rmatrix, this.raLocal);
-    this.rb = m3.transformPoint(collider2.Rmatrix, this.rbLocal);
-    this.PA = v3.sum(collider1.pos, this.ra);
-    this.PB = v3.sum(collider2.pos, this.rb);
+    const collider1 = this.body1.getCollider();
+    const collider2 = this.body2.getCollider();
+    this.ra = m3.transformPoint(collider1.getRmatrix(), this.raLocal);
+    this.rb = m3.transformPoint(collider2.getRmatrix(), this.rbLocal);
+    this.PA = v3.sum(collider1.getTranslation(), this.ra);
+    this.PB = v3.sum(collider2.getTranslation(), this.rb);
   }
   update() {
-    const collider1 = this.body1.collider;
-    const collider2 = this.body2.collider;
-    this.ra = m3.transformPoint(collider1.Rmatrix, this.raLocal);
-    this.rb = m3.transformPoint(collider2.Rmatrix, this.rbLocal);
-    const PA = v3.sum(collider1.pos, this.ra);
-    const PB = v3.sum(collider2.pos, this.rb);
+    const collider1 = this.body1.getCollider();
+    const collider2 = this.body2.getCollider();
+    this.ra = m3.transformPoint(collider1.getRmatrix(), this.raLocal);
+    this.rb = m3.transformPoint(collider2.getRmatrix(), this.rbLocal);
+    const PA = v3.sum(collider1.getTranslation(), this.ra);
+    const PB = v3.sum(collider2.getTranslation(), this.rb);
     const deltaPA = v3.diff(PA, this.PA);
     const deltaPB = v3.diff(PB, this.PB);
     this.PA = PA;
@@ -151,12 +151,12 @@ export class ContactConstraint implements IConstraint {
     this.prevLambda = 0
   }
   update() {
-    const collider1 = this.body1.collider;
-    const collider2 = this.body2.collider;
-    this.ra = m3.transformPoint(collider1.Rmatrix, this.raLocal);
-    this.rb = m3.transformPoint(collider2.Rmatrix, this.rbLocal);
-    const PA = v3.sum(collider1.pos, this.ra);
-    const PB = v3.sum(collider2.pos, this.rb);
+    const collider1 = this.body1.getCollider();
+    const collider2 = this.body2.getCollider();
+    this.ra = m3.transformPoint(collider1.getRmatrix(), this.raLocal);
+    this.rb = m3.transformPoint(collider2.getRmatrix(), this.rbLocal);
+    const PA = v3.sum(collider1.getTranslation(), this.ra);
+    const PB = v3.sum(collider2.getTranslation(), this.rb);
     const deltaPA = v3.diff(PA, this.PA);
     const deltaPB = v3.diff(PB, this.PB);
     this.PA = PA;
@@ -174,8 +174,8 @@ export class ContactConstraint implements IConstraint {
       1,
       v3.norm(
         v3.sum(
-          v3.scale(this.body1.velocity, this.body1.mass),
-          v3.scale(this.body2.velocity, this.body2.mass)
+          v3.scale(this.body1.getVelocity(), this.body1.getMass()),
+          v3.scale(this.body2.getVelocity(), this.body2.getMass())
         )
       ) * 10
     );

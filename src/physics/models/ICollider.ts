@@ -1,16 +1,22 @@
 import { vec3, mat3, mat4, AABB } from "romanpppmath";
+import IRigidBody from "./IRigidBody";
 export default interface ICollider {
-  Rmatrix: mat3;
-  RmatrixInverse: mat3;
-  pos: vec3;
-  type: string;
+  
+  getRigidBody() : IRigidBody
+  getType() : string
+  getId() : number
   translate(v : vec3):void
   rotate(v : vec3) : void
   setTranslation(translation : vec3) :void
+  getTranslation() : vec3
   
   setRotation(v : vec3) : void 
   getAABB() : AABB
-  setRmatrix(matrix : mat3) : void
+
+  setId(id : number) : void
+  setRmatrix(m : mat3) : void
+  getRmatrix() : mat3
+  getRmatrixInverse() : mat3
   getM4() :mat4
   localToGlobal(v : vec3) :vec3
   getClosestFaceByNormal(normal : vec3) : {vertices : Array<vec3>, normal : vec3}

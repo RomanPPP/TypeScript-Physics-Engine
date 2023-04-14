@@ -21,9 +21,14 @@ module.exports = {
     ],
   },
   entry: {
+
     ui : {
       import : "./ui/index.tsx",
       filename : './ui.js'
+    },
+    voxels : {
+      import: "./demo/voxels/voxels.ts",
+      filename: "./voxels.js",
     },
     wall: {
       import: "./demo/ball/ball.ts",

@@ -7,10 +7,24 @@ import {
   createSphere,
 } from "romanpppgraphics";
 import textureShaders from "./textureShader";
-import { getBoxUVs } from "./boxUVs";
+
 import FreeCam from "../../src/misc/FreeCam";
 import KeyInput from "../../src/misc/keyInput";
 import MouseInput from "../../src/misc/mouseInput";
+
+import VoxelWorld from "./VoxelWorld";
+
+import { RigidBody, TerrainSegment } from "../../src/physics/RigidBody";
+
+import Simulation from "../../src/physics/Simulation";
+
+import { Box, Sphere } from "../../src/physics/Collider";
+import IRigidBody from "../../src/physics/models/IRigidBody";
+import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
+import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
+import { Constraint } from "../../src/physics/Constraints";
+import config from "../../src/physics/config";
+import Debug from "../../src/physics/Debug";
 
 const canvas = document.getElementById("canvas");
 if (!canvas) throw "No canvas found";
@@ -106,13 +120,12 @@ const s = settings[0];
 gl.bindTexture(gl.TEXTURE_2D, texture1.texture);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, s.minFilter);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, s.magFilter);
-const uvs = getBoxUVs(16, 4);
+
 
 cube
   .createVAO()
   .setDrawer(drawer)
-  .setProgramInfo(textureProgramInfo)
-  .bufferData("TEXCOORD_0", uvs)
+  .setProgramInfo(pointLightProgramInfo)
   .setMode(4);
 
 const sphere = PrimitiveRenderer.fromArrayData(createSphere(1, 10, 10));
@@ -160,36 +173,52 @@ const uniforms = {
   u_shininess: 300,
 };
 
-import { RigidBody } from "../../src/physics/RigidBody";
 
-import Simulation from "../../src/physics/Simulation";
-
-import { Box, Sphere } from "../../src/physics/Collider";
-import IRigidBody from "../../src/physics/models/IRigidBody";
-import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
-import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
-import { Constraint } from "../../src/physics/Constraints";
-import config from "../../src/physics/config";
-import Debug from "../../src/physics/Debug";
 config.RIGID_BODY_MOVE_TRESHOLD = 0.001;
 config.CONTACT_TRESHOLD = 0.00001;
 config.CLIP_BIAS = 0.01;
 config.CONTACT_MANIFOLD_KEEP_TRESHOLD = 0.001;
 
 const sim = new Simulation();
-const body = new RigidBody(new Box(1, 1, 1));
 
-const floor = {
-  physics: new RigidBody(new Box(100, 5, 100)),
-  sprite: cube,
-  uniforms: { u_color: [1, 0, 1, 1] },
-};
+const cellSize = 32;
+const tileSize = 16;
+const tileTextureWidth = 256;
+const tileTextureHeight = 64;
 
-floor.physics.setMass(1);
-floor.physics.static = true;
+const world = new VoxelWorld({
+  cellSize,
+  tileSize,
+  tileTextureWidth,
+  tileTextureHeight,
+});
 
-floor.physics.translate([0, -2.5, 0]);
-sim.addObject(floor.physics);
+for (let y =0; y < cellSize; ++y) {
+  for (let z = 0; z < cellSize; ++z) {
+    for (let x = 0; x < cellSize; ++x) {
+      const height = (Math.sin(x / cellSize * Math.PI * 2) + Math.sin(z / cellSize * Math.PI * 3)) * (cellSize / 6) + (cellSize / 2);
+      if (y < height) {
+       
+        world.setVoxel(x, y, z, 1);
+        const phs = new TerrainSegment(new Box(1,1,1))
+       
+        phs.translate([x+0.5,y+0.5,z+0.5])
+        sim.addObject(phs)
+
+      }
+    }
+  }
+}
+
+const chunkPrimitive = PrimitiveRenderer.fromArrayData(world.generateGeometryDataForCell(0,0,0))
+
+chunkPrimitive
+  .createVAO()
+  .setDrawer(drawer)
+  .setProgramInfo(textureProgramInfo)
+  .setMode(4);
+
+
 
 interface objectToDraw {
   physics: RigidBody;
@@ -199,15 +228,15 @@ interface objectToDraw {
 
 let objectsToDraw: objectToDraw[] = [];
 
-objectsToDraw.push(floor);
-
-for (let i = 0; i < 15; i++) {
+const e : IRigidBody[]= []
+console.log(e)
+for (let i = 0; i < 100; i++) {
   const box = {
-    physics: new RigidBody(new Box(3, 3, 3)),
+    physics: new RigidBody(new Box(0.2, 1, 0.2)),
     sprite: cube,
-    uniforms: { u_color: [0, 0, 1, 1] },
+    uniforms: { u_color: [Math.random(), Math.random(), Math.random(), 1] },
   };
-  box.physics.translate([-2.5 + (i % 5) * 3, 1 + 3.01 * (i % 3), 0]);
+  box.physics.translate([15 + (i % 5) * 3, 50 + 3.01 * (i % 3), 15]);
   //box.physics.translate([0,  1 + 3.01 * (i), 0]);
   box.physics.setMass(5);
   box.physics.addAcceleration([0, -9, 0]);
@@ -216,15 +245,15 @@ for (let i = 0; i < 15; i++) {
 }
 
 const box = {
-  physics: new RigidBody(new Sphere(5)),
+  physics: new RigidBody(new Sphere(1)),
   sprite: sphere,
   uniforms: { u_color: [0, 0, 1, 1] },
 };
-box.physics.translate([0, 5, -30]);
+box.physics.translate([10, 40, 10]);
 box.physics.setMass(32);
 box.physics.addAcceleration([0, -9, 0]);
-box.physics.addVelocity([0, 0, 10]);
-//box.physics.addAngularVelocity([1, 1, 1]);
+box.physics.addVelocity([0, 0, 0]);
+box.physics.addAngularVelocity([1, 1, 1]);
 sim.addObject(box.physics);
 objectsToDraw.push(box);
 
@@ -269,6 +298,13 @@ const loop = () => {
       cameraMatrix
     );
   });
+  chunkPrimitive.draw({
+    ...uniforms,
+    u_matrix: m4.identity(),
+    u_color: [0, 0, 0, 1],
+    u_viewWorldPosition,
+  },
+  cameraMatrix)
   point.draw(
     {
       ...uniforms,
@@ -312,7 +348,7 @@ const loop = () => {
           },
           cameraMatrix
         );
-      line
+      /*line
         .bufferData(
           "a_position",
           new Float32Array([...contact.PA, ...v3.sum(contact.PA, contact.j)])
@@ -337,7 +373,7 @@ const loop = () => {
           cameraMatrix
         );
     });
-  } */
+  }*/
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   requestAnimationFrame(loop);
 };

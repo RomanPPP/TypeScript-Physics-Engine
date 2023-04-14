@@ -1,7 +1,6 @@
 import { AABB } from "romanpppmath";
 
-const getBoundAabb = (aabb1 : AABB, aabb2 : AABB) => {
-
+const getBoundAabb = (aabb1: AABB, aabb2: AABB) => {
   const x1 = aabb1.min[0] < aabb2.min[0] ? aabb1.min[0] : aabb2.min[0];
   const x2 = aabb1.max[0] > aabb2.max[0] ? aabb1.max[0] : aabb2.max[0];
   const y1 = aabb1.min[1] < aabb2.min[1] ? aabb1.min[1] : aabb2.min[1];
@@ -10,7 +9,7 @@ const getBoundAabb = (aabb1 : AABB, aabb2 : AABB) => {
   const z2 = aabb1.max[2] > aabb2.max[2] ? aabb1.max[2] : aabb2.max[2];
   return new AABB([x1, y1, z1], [x2, y2, z2]);
 };
-const isCollide = (aabb1 :AABB, aabb2 : AABB) => {
+const isCollide = (aabb1: AABB, aabb2: AABB) => {
   if (
     aabb1.min[0] <= aabb2.max[0] &&
     aabb1.max[0] >= aabb2.min[0] &&
@@ -23,146 +22,257 @@ const isCollide = (aabb1 :AABB, aabb2 : AABB) => {
   }
   return false;
 };
-const getSize = (aabb : AABB) => {
+const getSize = (aabb: AABB) => {
   const area =
     Math.abs(aabb.max[0] - aabb.min[0]) *
     Math.abs(aabb.max[1] - aabb.min[1]) *
     Math.abs(aabb.max[2] - aabb.min[2]);
   return area;
 };
-class Node {
-  aabb : AABB
-  isLeaf : boolean
-  parent : Node
-  id : number
-  isChecked : boolean
-  child1 : Node
-  child2 : Node
-  constructor(aabb : AABB, isLeaf : boolean, id : number) {
+type ObjectWithAABB = { getAABB(): AABB };
+class Node<T> {
+  aabb: AABB;
+  isLeaf: boolean;
+  parent: Node<T>;
+  id: number;
+  isChecked: boolean;
+  left: Node<T>;
+  right: Node<T>;
+  object: any;
+  height: number;
+  queryId : number
+
+  constructor(aabb: AABB, isLeaf: boolean, object: T, id: number) {
     this.aabb = aabb;
     this.isLeaf = isLeaf;
     this.parent = null;
-    this.id = id
-    this.child1 = null
-    this.child2 = null
+    this.id = id;
+    this.left = null;
+    this.right = null;
     this.isChecked = false;
+    this.object = object;
+    this.height = 0;
+    this.queryId = 0
   }
 }
-export default class Tree {
-  root : Node
-  elements : Map<number, Node>
+export default class Tree<T extends ObjectWithAABB> {
+  root: Node<T>;
+  elements: Map<number, Node<T>>;
+  queryId : number
+  collisions : [T,T][]
+  getId : (o : T) =>number
   constructor() {
     this.root = null;
-    this.elements = new Map()
+    this.elements = new Map();
+    this.queryId = 0
+    this.getId = null
+    this.collisions = []
   }
+  setKey( f : (o : T) =>   number){
+    this.getId = f
+  }
+  updateQueryId(){
+    this.queryId++
+  }
+
+
   setUnchecked() {
-    if(!this.root)return
+    if (!this.root) return;
     const stack = [this.root];
-    
+
     while (stack.length != 0) {
       const node = stack.pop();
-      
+      node.isChecked = false;
       if (node.isLeaf) {
-        node.isChecked = false;
+        
         continue;
       }
-      if (node.child1) stack.push(node.child1);
-      if (node.child2) stack.push(node.child2);
+      if (node.left) stack.push(node.left);
+      if (node.right) stack.push(node.right);
     }
   }
-  private getBestSibling(leaf : Node) {
+  private getBestSibling(leaf: Node<T>) {
     let potential = this.root;
+
     while (!potential.isLeaf) {
+      potential.height++;
       const size = getSize(potential.aabb);
       const combinedAABB = getBoundAabb(potential.aabb, leaf.aabb);
       const combinedSize = getSize(combinedAABB);
       let cost = combinedSize;
       let inherCost = combinedSize - size;
 
-      let cost1 : number;
-      if (potential.child1.isLeaf) {
-        cost1 = getSize(potential.child1.aabb) + inherCost;
+      let cost1: number;
+      if (potential.left.isLeaf) {
+        cost1 = getSize(potential.left.aabb) + inherCost;
       } else {
         cost1 =
-          getSize(getBoundAabb(leaf.aabb, potential.child1.aabb)) -
-          getSize(potential.child1.aabb) +
+          getSize(getBoundAabb(leaf.aabb, potential.left.aabb)) -
+          getSize(potential.left.aabb) +
           inherCost;
       }
 
-      let cost2 : number;
-      if (potential.child2.isLeaf) {
-        cost2 = getSize(potential.child2.aabb) + inherCost;
+      let cost2: number;
+      if (potential.right.isLeaf) {
+        cost2 = getSize(potential.right.aabb) + inherCost;
       } else {
         cost2 =
-          getSize(getBoundAabb(leaf.aabb, potential.child2.aabb)) -
-          getSize(potential.child2.aabb) +
+          getSize(getBoundAabb(leaf.aabb, potential.right.aabb)) -
+          getSize(potential.right.aabb) +
           inherCost;
       }
       if (cost < cost1 && cost < cost2) return potential;
       if (cost1 < cost2) {
-        potential = potential.child1;
-      } else potential = potential.child2;
+        potential = potential.left;
+      } else potential = potential.right;
     }
     return potential;
   }
-  insert(aabb : AABB, id : number) {
-
-    const leaf = new Node(aabb, true, id);
-    this.elements.set(id, leaf)
+  insert(object: T) {
+    const aabb = object.getAABB();
+    const id = this.getId(object)
+    const leaf = new Node(aabb, true, object, id);
+    this.elements.set(id, leaf);
     if (this.root === null) {
       this.root = leaf;
+      this.root.height = 1;
       this.root.parent = null;
       return leaf;
     }
 
     const sibling = this.getBestSibling(leaf);
     const oldParent = sibling.parent;
-    const newParent = new Node(leaf.aabb, false, null);
+    const newParent = new Node(null, false, null, null);
     newParent.parent = oldParent;
 
     newParent.aabb = getBoundAabb(leaf.aabb, sibling.aabb);
-
+    newParent.height = sibling.height + 1;
     if (oldParent) {
-      if (oldParent.child1 === sibling) oldParent.child1 = newParent;
-      else oldParent.child2 = newParent;
+      if (oldParent.left === sibling) oldParent.left = newParent;
+      else oldParent.right = newParent;
 
-      newParent.child1 = sibling;
-      newParent.child2 = leaf;
+      newParent.left = sibling;
+      newParent.right = leaf;
 
       sibling.parent = newParent;
       leaf.parent = newParent;
     } else {
-      newParent.child1 = sibling;
-      newParent.child2 = leaf;
+      newParent.left = sibling;
+      newParent.right = leaf;
 
       sibling.parent = newParent;
       leaf.parent = newParent;
       this.root = newParent;
     }
-    let index = leaf.parent;
-    
-    while (index ) {
-      index = this.rebalance(index);
-      index = index.parent;
+    let _node = leaf.parent;
+
+    while (_node) {
+      _node = this.balance(_node);
+      _node.height = 1 + Math.max(_node.left.height, _node.right.height);
+      _node = _node.parent;
     }
     return leaf;
   }
-  getCollisions(aabb : AABB, id : number) {
-    
-    const cols : number[] = [];
-    const iter = (_node : Node) => {
+  balance(node: Node<T>) {
+    if (!node) {
+      return null;
+    }
+    if (node.isLeaf || node.height < 2) {
+      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+      return node;
+    }
+    const left = node.left;
+    const right = node.right;
+    const balance = node.right.height - node.left.height;
+
+    if (balance > 1) {
+      const rightleft = right.left;
+      const rightright = right.right;
+
+      right.left = node;
+      right.parent = node.parent;
+      node.parent = right;
+      if (right.parent != null) {
+        if (right.parent.left === node) {
+          right.parent.left = right;
+        } else {
+          right.parent.right = right;
+        }
+      } else this.root = right;
+      if (right.left.height > rightright.height) {
+        right.right = rightleft;
+        node.right = rightright;
+        rightright.parent = node;
+
+        node.height = 1 + Math.max(left.height, rightright.height);
+        right.height = 1 + Math.max(node.height, rightleft.height);
+      } else {
+        node.right = rightleft;
+        rightleft.parent = node;
+
+        node.height = 1 + Math.max(left.height, rightleft.height);
+        right.height = 1 + Math.max(node.height, rightright.height);
+      }
+      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+      right.aabb = getBoundAabb(right.left.aabb, right.right.aabb);
+
+      return right;
+    }
+    if (balance < -1) {
+      const leftleft = left.left;
+      const leftright = left.right;
+
+      left.left = node;
+      left.parent = node.parent;
+      node.parent = left;
+
+      if (left.parent != null) {
+        if (left.parent.left === node) {
+          left.parent.left = left;
+        } else {
+          left.parent.right = left;
+        }
+      } else this.root = left;
+      if (leftleft.height > leftright.height) {
+        left.right = leftleft;
+        node.left = leftright;
+        leftright.parent = node;
+
+        node.height = 1 + Math.max(right.height, leftright.height);
+        left.height = 1 + Math.max(node.height, leftleft.height);
+      } else {
+        left.right = leftright;
+        node.left = leftleft;
+        leftleft.parent = node;
+
+        node.height = 1 + Math.max(right.height, leftleft.height);
+        left.height = 1 + Math.max(node.height, leftright.height);
+      }
+      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+      left.aabb = getBoundAabb(left.left.aabb, left.right.aabb);
+
+      return left;
+    }
+    node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+    return node;
+  }
+  getCollisions(object: T) {
+    const aabb = object.getAABB();
+    const cols: T[] = [];
+   // this.elements.get(this.getId(object)).queryId = this.queryId
+    const iter = (_node: Node<T>) => {
       if (!_node) {
         return;
       }
-      if (_node.id === id) {
+      if (_node.object === object) {
         return;
       }
       if (isCollide(aabb, _node.aabb)) {
         if (_node.isLeaf && !_node.isChecked) {
-          cols.push(_node.id);
+          cols.push(_node.object);
         }
-        iter(_node.child1);
-        iter(_node.child2);
+        iter(_node.left);
+        iter(_node.right);
       }
     };
 
@@ -170,154 +280,94 @@ export default class Tree {
 
     return cols;
   }
-  remove(id : number) {
-    const leaf = this.elements.get(id)
-    if(!leaf) return
+
+  remove(id: number) {
+    const leaf = this.elements.get(id);
+    if (!leaf) return;
+
     if (leaf === this.root) {
       this.root = null;
       return;
     }
     const parent = leaf.parent;
-    const grandParent = parent ? parent.parent : null;
-    let sibling : Node;
-    if (parent.child1 === leaf) sibling = parent.child2;
-    else sibling = parent.child1;
+    const grandParent = parent.parent;
+    let sibling: Node<T>;
+    if (parent.left === leaf) sibling = parent.right;
+    else sibling = parent.left;
 
     if (grandParent) {
-      if (grandParent.child1 === parent) grandParent.child1 = sibling;
-      else grandParent.child2 = sibling;
+      if (grandParent.left === parent) grandParent.left = sibling;
+      else grandParent.right = sibling;
 
       sibling.parent = grandParent;
 
-      let index = grandParent;
-      while (index) {
-        index = this.rebalance(index);
-
-        index = index.parent;
+      let _node = grandParent;
+      while (_node) {
+        _node = this.balance(_node);
+        _node.height = 1 + Math.max(_node.right.height, _node.left.height);
+        _node = _node.parent
       }
+
     } else {
       this.root = sibling;
       sibling.parent = null;
     }
-    this.elements.delete(id)
+    this.elements.delete(id);
   }
-  private rebalance(leaf : Node) {
-    if (!leaf) {
-      return null;
-    }
-    if (leaf.isLeaf || this.getHeight(leaf) < 2) {
-      leaf.aabb = getBoundAabb(leaf.child1.aabb, leaf.child2.aabb);
-      return leaf;
-    }
-    const child1 = leaf.child1;
-    const child2 = leaf.child2;
-    const balance = this.getHeight(child2) - this.getHeight(child1);
-
-    if (balance > 1) {
-      const child2Child1 = child2.child1;
-      const child2Child2 = child2.child2;
-
-      child2.child1 = leaf;
-      child2.parent = leaf.parent;
-      leaf.parent = child2;
-      if (child2.parent != null) {
-        if (child2.parent.child1 === leaf) {
-          child2.parent.child1 = child2;
-        } else {
-          child2.parent.child2 = child2;
-        }
-      } else this.root = child2;
-      if (this.getHeight(child2Child1) > this.getHeight(child2Child2)) {
-        child2.child2 = child2Child1;
-        leaf.child2 = child2Child2;
-        child2Child2.parent = leaf;
-      } else {
-        leaf.child2 = child2Child1;
-        child2Child1.parent = leaf;
-      }
-      leaf.aabb = getBoundAabb(leaf.child1.aabb, leaf.child2.aabb);
-      child2.aabb = getBoundAabb(child2.child1.aabb, child2.child2.aabb);
-
-      return child2;
-    }
-    if (balance < -1) {
-      const child1Child1 = child1.child1;
-      const child1Child2 = child1.child2;
-
-      child1.child1 = leaf;
-      child1.parent = leaf.parent;
-      leaf.parent = child1;
-
-      if (child1.parent != null) {
-        if (child1.parent.child1 === leaf) {
-          child1.parent.child1 = child1;
-        } else {
-          child1.parent.child2 = child1;
-        }
-      } else this.root = child1;
-      if (this.getHeight(child1Child1) > this.getHeight(child1Child2)) {
-        child1.child2 = child1Child1;
-        leaf.child1 = child1Child2;
-        child1Child2.parent = leaf;
-      } else {
-        child1.child2 = child1Child2;
-        leaf.child1 = child1Child1;
-        child1Child1.parent = leaf;
-      }
-      leaf.aabb = getBoundAabb(leaf.child1.aabb, leaf.child2.aabb);
-      child1.aabb = getBoundAabb(child1.child1.aabb, child1.child2.aabb);
-
-      return child1;
-    }
-    leaf.aabb = getBoundAabb(leaf.child1.aabb, leaf.child2.aabb);
-    return leaf;
-  }
-  toArray(node : Node) {
-    const iter = (leaf : Node) => {
+  
+  toArray(node: Node<T>) {
+    const iter = (leaf: Node<T>) => {
       if (!leaf) {
         return null;
       }
       if (leaf.isLeaf) return leaf.id;
-      else return [iter(leaf.child1), iter(leaf.child2)];
+      else return [iter(leaf.left), iter(leaf.right)];
     };
     if (!node) node = this.root;
     return iter(node);
   }
-  /*getHeight(leaf) {
-    const iter = (leaf, level) => {
-      if (!leaf) {
-        return level;
-      }
+  _getCollisions(){
+    this.collisions = []
+    if(!this.root || this.root.isLeaf) return this.collisions
+    this.setUnchecked()
+    this._getCollisionsHelper(this.root.left, this.root.right)
+    return this.collisions
 
-      let h1 = iter(leaf.child1, level + 1);
-      let h2 = iter(leaf.child2, level + 1);
-      return h1 > h2 ? h1 : h2;
-    };
-    return iter(leaf, 1);
-  }*/
-  getHeight(root : Node){
-    if(!root) return 0
-    let height = 0
-    const queue = [root]
-    while(queue.length != 0){
-      height += 1
-      const count = queue.length
-      for(let i = 0; i < count; i++){
-        const tmp = queue.pop()
-        if(tmp.child1) queue.push(tmp.child1)
-        if(tmp.child2) queue.push(tmp.child2)
+  }
+  _getCollisionsHelper(node1 : Node<T>, node2 : Node<T>){
+    if(node1.isLeaf){
+      if(node2.isLeaf){
+        if(isCollide(node1.aabb, node2.aabb)){
+          this.collisions.push([node1.object, node2.object])
+        }
+      }
+      else{
+        this.crossChildren(node2)
+        this._getCollisionsHelper(node1, node2.right)
+        this._getCollisionsHelper(node1, node2.left)
+
       }
     }
-    return height
+    else{
+      if(node2.isLeaf){
+        this.crossChildren(node1)
+        this._getCollisionsHelper(node1.right, node2)
+        this._getCollisionsHelper(node1.left, node2)
+      }
+      else{
+        this.crossChildren(node1)
+        this.crossChildren(node2)
+        this._getCollisionsHelper(node1.right, node2.right)
+        this._getCollisionsHelper(node1.left, node2.left)
+        this._getCollisionsHelper(node1.right, node2.left)
+        this._getCollisionsHelper(node1.left, node2.right)
+      }
+    }
   }
-  getNodes() {
-    const iter = (node, arr) => {
-      arr.push(node);
-      if (node.child1) iter(node.child1, arr);
-      if (node.child2) iter(node.child2, arr);
-    };
-    const a = [];
-    iter(this.root, a);
-    return a;
+  crossChildren(node : Node<T>){
+    if(!node.isChecked){
+      this._getCollisionsHelper(node.right, node.left)
+      node.isChecked = true
+    }
   }
 }
