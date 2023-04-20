@@ -413,8 +413,6 @@ const EPA = (
   return null;
 };
 
-const gjkScope = {};
-const _gjk = gjk.bind(gjkScope);
 
 const getContacts = (
   coll1: ICollider,
@@ -514,6 +512,8 @@ const getContacts = (
   });
 
   if (features.length === 0) {
+    console.log(_2d1, _2d2, clipped )
+    throw 1
     const rb = diff(PB, coll2.getTranslation());
     const ra = diff(PA, coll1.getTranslation());
     const raLocal = m3.transformPoint(coll1.getRmatrixInverse(), ra);
@@ -529,6 +529,7 @@ const getContacts = (
 };
 
 export {
+  gjk,
   getContacts,
   pointOnPlaneProjection,
   clipPointsBehindPlane,

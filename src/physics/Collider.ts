@@ -10,31 +10,24 @@ const yAxisNegative = v3.scale(yAxis, -1);
 const zAxisNegative = v3.scale(zAxis, -1);
 
 class Collider implements ICollider {
-  static lastId = 1
+  static lastId = 1;
   Rmatrix: mat3;
   RmatrixInverse: mat3;
   pos: vec3;
   type: string;
-  id : number
-  rigidBody : IRigidBody
+  id: number;
   constructor() {
     this.Rmatrix = m3.identity();
     this.RmatrixInverse = m3.identity();
     this.pos = [0, 0, 0];
     this.type = "point";
-    this.id = Collider.lastId++
-  }
-  getRigidBody(): IRigidBody {
-    return this.rigidBody
-  }
-  setRigidBody(body : IRigidBody){
-    this.rigidBody = body
+    this.id = Collider.lastId++;
   }
   getType() {
-    return this.type
+    return this.type;
   }
-  getRmatrix(){
-    return this.Rmatrix
+  getRmatrix() {
+    return this.Rmatrix;
   }
   setRmatrix(matrix: mat3) {
     this.Rmatrix = [...matrix];
@@ -42,13 +35,13 @@ class Collider implements ICollider {
     this.RmatrixInverse = m3.transpose(matrix);
   }
   getRmatrixInverse() {
-      return this.RmatrixInverse
+    return this.RmatrixInverse;
   }
-  getId(){
-    return this.id
+  getId() {
+    return this.id;
   }
   setId(id: number): void {
-    this.id = id
+    this.id = id;
   }
   translate(v: vec3) {
     this.pos = v3.sum(this.pos, v);
@@ -57,7 +50,7 @@ class Collider implements ICollider {
     this.pos = [...translation];
   }
   getTranslation() {
-    return this.pos
+    return this.pos;
   }
   rotate(r: vec3) {
     this.Rmatrix = m3.xRotate(this.Rmatrix, r[0]);
@@ -81,7 +74,7 @@ class Collider implements ICollider {
     const minZ = this.support(zAxisNegative)[2];
     return new AABB([minX, minY, minZ], [maxX, maxY, maxZ]);
   }
-  
+
   getM4() {
     const m = m4.m3Tom4(this.Rmatrix);
     m[12] = this.pos[0];
@@ -109,15 +102,29 @@ class Collider implements ICollider {
 }
 
 class Box extends Collider {
+  /*
+
+
+        
+        4-------5
+       /       /
+      /       /
+     7-------6
+     |  0-------1
+     | /       /
+     |/       /
+     3-------2
+  */
+
   static points: Tuple<vec3, 8> = [
-    [-1 / 2, -1 / 2, -1 / 2],
-    [1 / 2, -1 / 2, -1 / 2],
-    [1 / 2, -1 / 2, 1 / 2],
-    [-1 / 2, -1 / 2, 1 / 2],
-    [-1 / 2, 1 / 2, -1 / 2],
-    [1 / 2, 1 / 2, -1 / 2],
-    [1 / 2, 1 / 2, 1 / 2],
-    [-1 / 2, 1 / 2, 1 / 2],
+    [-1 / 2, -1 / 2, -1 / 2], //0
+    [1 / 2, -1 / 2, -1 / 2], //1
+    [1 / 2, -1 / 2, 1 / 2], //2
+    [-1 / 2, -1 / 2, 1 / 2], //3
+    [-1 / 2, 1 / 2, -1 / 2], //4
+    [1 / 2, 1 / 2, -1 / 2], //5
+    [1 / 2, 1 / 2, 1 / 2], //6
+    [-1 / 2, 1 / 2, 1 / 2], //7
   ];
   static indices: Tuple<Tuple<number, 4>, 6> = [
     [0, 4, 5, 1], // -z
@@ -353,8 +360,40 @@ class Cylinder extends Collider {
   }
 }
 
+class Triangle extends Collider {
+  vertices: [vec3, vec3, vec3];
+  normal: vec3;
+  constructor(vertices: [vec3, vec3, vec3]) {
+    super();
+    this.vertices = vertices;
+    this.normal = v3.cross(
+      v3.diff(vertices[0], vertices[1]),
+      v3.diff(vertices[2], vertices[1])
+    );
+  }
+  support(dir?: [number, number, number]): [number, number, number] {
+    const dot1 = v3.dot(this.vertices[0], dir);
+    const dot2 = v3.dot(this.vertices[1], dir);
+    const dot3 = v3.dot(this.vertices[2], dir);
+    let furthest = this.vertices[0];
 
+    if (dot2 > dot1) {
+      furthest = this.vertices[1];
+      if (dot3 > dot2) furthest = this.vertices[2];
+    }
 
+    if (dot3 > dot1) furthest = this.vertices[2];
 
+    if (v3.dot(dir, this.normal) < 0) furthest = v3.diff(furthest, this.normal);
 
-export { Box, Sphere, Cylinder };
+    return furthest;
+  }
+  getClosestFaceByNormal(normal: vec3) {
+    return {
+      vertices: this.vertices,
+      normal: this.normal,
+    };
+  }
+}
+
+export { Box, Sphere, Cylinder, Triangle };

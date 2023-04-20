@@ -1,7 +1,8 @@
 import Tree from "./Tree";
 import { v3 } from "romanpppmath";
 
-import { getContacts as gjk } from "./gjk";
+//import { getContacts as gjk } from "./gjk";
+import gjk from "./getCollisionFeatures";
 import Manifold from "./ContactManifold";
 import System from "./System";
 

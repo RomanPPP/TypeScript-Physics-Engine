@@ -1,3 +1,4 @@
 export default class HashGrid{
-    cells
+    chunkSize : number
+    
 }

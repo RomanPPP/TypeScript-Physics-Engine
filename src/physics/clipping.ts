@@ -1,6 +1,6 @@
-import {Tuple} from 'romanpppmath'
 
-type vec2 = Tuple<number, 2>
+
+type vec2 = [number, number]
 
 const isInside = (p1 :vec2, p2 :vec2, q : vec2) => {
   const R = (p2[0] - p1[0]) * (q[1] - p1[1]) - (p2[1] - p1[1]) * (q[0] - p1[0]);
@@ -8,7 +8,7 @@ const isInside = (p1 :vec2, p2 :vec2, q : vec2) => {
 };
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
-
+/*
 const isInClockwise = (points : Array<vec2>) => {
   if (points.length < 3) return 1;
   const [p1, p2, p3] = points;
@@ -20,9 +20,25 @@ const isInClockwise = (points : Array<vec2>) => {
     p3[0] * p2[1] -
     p1[0] * p3[1];
 
-  if (det < 0) return 1;
+  if (det <= 0) return 1;
   return -1;
 };
+*/
+
+
+function isInClockwise(poly : vec2[]) {
+  if(poly.length < 3) return 1
+
+  let end = poly.length - 1;
+  let sum = poly[end][0]*poly[0][1] - poly[0][0]*poly[end][1];
+  for(let i=0; i<end; ++i) {
+      const n=i+1;
+      sum += poly[i][0]*poly[n][1] - poly[n][0]*poly[i][1];
+  }
+  return sum > 0;
+}
+
+
 
 const computeIntersection = (p1 : vec2, p2 : vec2, p3 : vec2, p4 : vec2) : vec2=> {
   if (p2[0] - p1[0] === 0) {
@@ -99,7 +115,7 @@ const clipPolyVsPoly = (A : Array<vec2>, B : Array<vec2>) : Array<vec2> => {
 
 const lerp = (a : number, b : number, t : number) => a + (b - a) * t;
 
-const clipSegmentVsSegment = (s1 : Tuple<vec2, 2>, s2 :Tuple<vec2, 2>) : Array<vec2> => {
+const clipSegmentVsSegment = (s1 : [vec2, vec2], s2 : [vec2, vec2]) : vec2[] => {
   const [p1, p2] = s1
   const [p3, p4] = s2
   const top =
@@ -130,7 +146,7 @@ const clipPointVsPoly = (point : vec2, vertices : Array<vec2>) : Array<vec2> => 
 
   return [point];
 };
-const clipSegmentVsPoly = (segment : Tuple<vec2, 2>, poly : Array<vec2>) : Array<vec2> => {
+const clipSegmentVsPoly = (segment :  [vec2, vec2], poly : vec2[]) : Array<vec2> => {
   const [p1, p2] = segment;
   const points : Array<vec2> = [];
   if (clipPointVsPoly(p1, poly)) points.push(p1);

@@ -173,7 +173,7 @@ import config from "../../src/physics/config";
 import Debug from "../../src/physics/Debug";
 config.RIGID_BODY_MOVE_TRESHOLD = 0.001;
 config.CONTACT_TRESHOLD = 0.00001;
-config.CLIP_BIAS = 0.01;
+//config.CLIP_BIAS = 0.01;
 config.CONTACT_MANIFOLD_KEEP_TRESHOLD = 0.001;
 
 const sim = new Simulation();

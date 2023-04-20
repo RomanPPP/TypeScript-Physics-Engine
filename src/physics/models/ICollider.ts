@@ -2,7 +2,6 @@ import { vec3, mat3, mat4, AABB } from "romanpppmath";
 import IRigidBody from "./IRigidBody";
 export default interface ICollider {
   
-  getRigidBody() : IRigidBody
   getType() : string
   getId() : number
   translate(v : vec3):void
