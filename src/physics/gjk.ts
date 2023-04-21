@@ -128,7 +128,8 @@ function update_simplex4(props: IProps) {
 function gjk(
   coll1: ICollider,
   coll2: ICollider
-): null | { PA: vec3; PB: vec3; n: vec3; positionError: number } {
+)//: null | { PA: vec3; PB: vec3; n: vec3; positionError: number } 
+{
   const props: IProps = {
     a: [0, 0, 0],
     b: [0, 0, 0],
@@ -188,7 +189,7 @@ function gjk(
       update_simplex3(props);
     } else if (update_simplex4(props)) {
     
-      return EPA(props.a, props.b, props.c, props.d, originsMap, coll1, coll2);
+      return {...props, coll1, coll2, originsMap} //EPA(props.a, props.b, props.c, props.d, originsMap, coll1, coll2);
     }
   }
   return null;
@@ -343,7 +344,8 @@ const EPA = (
 
       //const ra = PA.substract(coll1.pos)
 
-      const n = normalize(scale(face[3], -dot(p, search_dir)));
+      const n = scale(face[3], -1) //
+      //const n = normalize(scale(face[3], -dot(p, search_dir)));
       //if (norm(n) < 0.01) return null;
       const positionError = -dot(diff(PB, PA), n);
 
@@ -413,7 +415,7 @@ const EPA = (
   return null;
 };
 
-
+/*
 const getContacts = (
   coll1: ICollider,
   coll2: ICollider
@@ -527,10 +529,12 @@ const getContacts = (
 
   return features;
 };
-
+*/
 export {
   gjk,
-  getContacts,
+  EPA,
+  
+ // getContacts,
   pointOnPlaneProjection,
   clipPointsBehindPlane,
   get2DcoordsOnPlane,

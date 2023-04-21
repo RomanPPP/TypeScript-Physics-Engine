@@ -9,7 +9,6 @@ src/misc/config.js
 src/misc/Entity.js
 src/physics/models/ISpatialDB.ts
 src/physics/HashGrid.ts
-src/physics/gjk.ts
 lib
 
 shader.js

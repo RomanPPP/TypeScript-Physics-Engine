@@ -9,18 +9,25 @@ const xAxisNegative = v3.scale(xAxis, -1);
 const yAxisNegative = v3.scale(yAxis, -1);
 const zAxisNegative = v3.scale(zAxis, -1);
 
+enum colliderTypes  {
+  Point,
+  Box,
+  Sphere,
+  Cylinder,
+  Triangle
+}
 class Collider implements ICollider {
   static lastId = 1;
   Rmatrix: mat3;
   RmatrixInverse: mat3;
   pos: vec3;
-  type: string;
+  type: number;
   id: number;
   constructor() {
     this.Rmatrix = m3.identity();
     this.RmatrixInverse = m3.identity();
     this.pos = [0, 0, 0];
-    this.type = "point";
+    this.type = colliderTypes.Point;
     this.id = Collider.lastId++;
   }
   getType() {
@@ -148,6 +155,7 @@ class Box extends Collider {
 
   constructor(a = 1, b = 1, c = 1) {
     super();
+    this.type = colliderTypes.Box
     this.scale = [a, b, c];
     this.min = [-a / 2, -b / 2, -c / 2];
     this.max = [a / 2, b / 2, c / 2];
@@ -235,11 +243,11 @@ class Box extends Collider {
 }
 class Sphere extends Collider {
   radius: number;
-  type: string;
+
   constructor(radius = 1) {
     super();
     this.radius = radius;
-    this.type = "sphere";
+    this.type = colliderTypes.Sphere;
   }
   getAABB() {
     const { radius } = this;
@@ -288,6 +296,7 @@ class Cylinder extends Collider {
   circlePoints: Array<vec3>;
   constructor(radius: number, height: number, numSegments: number = 6) {
     super();
+    this.type = colliderTypes.Cylinder
     this.radius = radius;
     this.height = height;
     const segmentAngle = (2 * Math.PI) / numSegments;
@@ -365,6 +374,7 @@ class Triangle extends Collider {
   normal: vec3;
   constructor(vertices: [vec3, vec3, vec3]) {
     super();
+    this.type = colliderTypes.Triangle
     this.vertices = vertices;
     this.normal = v3.cross(
       v3.diff(vertices[0], vertices[1]),
@@ -396,4 +406,4 @@ class Triangle extends Collider {
   }
 }
 
-export { Box, Sphere, Cylinder, Triangle };
+export { Box, Sphere, Cylinder, Triangle, colliderTypes };
