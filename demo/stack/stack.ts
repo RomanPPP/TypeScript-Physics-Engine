@@ -95,7 +95,7 @@ const uniforms = {
 
 
 import { RigidBody } from "../../src/physics/RigidBody";
-
+import IRigidBody from "../../src/physics/models/IRigidBody";
 import Simulation from "../../src/physics/Simulation";
 
 import { Box, Sphere } from "../../src/physics/Collider";
@@ -113,7 +113,7 @@ floor.physics.translate([0,-2.5,0])
 sim.addObject(floor.physics)
 
 interface objectToDraw {
-  physics : RigidBody
+  physics : IRigidBody
   sprite :  typeof cube
   uniforms : {[key : string] : Iterable<number>}
 }
@@ -193,7 +193,7 @@ const loop = () => {
     obj.sprite.draw(
       {
         ...uniforms,
-        u_matrix : obj.physics.collider.getM4(),
+        u_matrix : obj.physics.getCollider().getM4(),
         u_viewWorldPosition,
         ...obj.uniforms,
       },
@@ -224,7 +224,7 @@ const loop = () => {
     cameraMatrix
   );
   
-  for (const [id, manifold] of sim.collisionManifolds) {
+  for (const [id, manifold] of sim.contactManifolds) {
     manifold.contacts.forEach((contact) => {
       point
         .draw(

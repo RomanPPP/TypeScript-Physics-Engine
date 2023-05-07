@@ -1,34 +1,151 @@
-import { m4, v3 } from "romanpppmath";
-import {
-  createBox,
-  GLcontextWrapper,
-  pointLightShaders,
-  defaultShaders,
-  createSphere,
-} from "romanpppgraphics";
+import { m4 } from "romanpppmath";
+import VoxelWorld from "./terrain/VoxelWorld";
+import { RigidBody, TerrainSegment } from "../../src/physics/RigidBody";
+import { Box } from "../../src/physics/Collider";
+import IRigidBody from "../../src/physics/models/IRigidBody";
+import Debug from "../../src/physics/Debug";
+import VoxelWorldPrimitive from "./VoxelWorldPrimitive";
+import { GLcontextWrapper, PrimitiveRenderer, createBox, pointLightShaders } from "romanpppgraphics";
 import textureShaders from "./textureShader";
 
 import FreeCam from "../../src/misc/FreeCam";
 import KeyInput from "../../src/misc/keyInput";
 import MouseInput from "../../src/misc/mouseInput";
+const context = new GLcontextWrapper("canvas");
+const texture1 = new context.TextureInfo();
 
-import VoxelWorld from "./VoxelWorld";
+texture1.createTextureFromURL("resources/atlas.png");
+context.resizeCanvasToDisplaySize();
+const drawer = new context.Drawer();
+drawer.projectionMatrix = context.Drawer.create3dProjectionMatrix(
+  1,
+  2000,
+  context.gl.canvas.width,
+  context.gl.canvas.height
+);
+const globalUniforms = {
+    u_lightWorldPosition: [30, 50, 30],
+    u_ambientLight: [1, 1, 0.3, 0.11],
+    u_reverseLightDirection: [1, 0, 0],
+    u_shininess: 300,
+  };
+  
 
-import { RigidBody, TerrainSegment } from "../../src/physics/RigidBody";
+const textureProgramInfo = new context.ProgramInfo(
+  textureShaders.vert,
+  textureShaders.frag
+);
+const pointLightProgramInfo = new context.ProgramInfo(
+  pointLightShaders.vert,
+  pointLightShaders.frag
+);
 
-import Simulation from "../../src/physics/Simulation";
+pointLightProgramInfo.compileShaders().createUniformSetters();
+const cube = context.PrimitiveRenderer.fromArrayData(createBox(1, 1, 1));
 
-import { Box, Sphere } from "../../src/physics/Collider";
-import IRigidBody from "../../src/physics/models/IRigidBody";
-import IPrimitiveRenderer from "romanpppgraphics/lib/models/IPrimitiveRenderer";
-import { getCenter, getDiagonal } from "romanpppmath/lib/aabb";
-import { Constraint } from "../../src/physics/Constraints";
-import config from "../../src/physics/config";
-import Debug from "../../src/physics/Debug";
+cube
+  .createVAO()
+  .setDrawer(drawer)
+  .setProgramInfo(pointLightProgramInfo)
+  .setMode(4);
 
-const canvas = document.getElementById("canvas");
-if (!canvas) throw "No canvas found";
-const mouseInput = new MouseInput(canvas);
+textureProgramInfo.compileShaders().createUniformSetters();
+const sim = new VoxelWorld();
+
+const cellSize = 32;
+const tileSize = 16;
+const tileTextureWidth = 256;
+const tileTextureHeight = 64;
+
+const world = new VoxelWorldPrimitive({
+  cellSize,
+  tileSize,
+  tileTextureWidth,
+  tileTextureHeight,
+});
+
+const cellMeshes: {
+  [
+    id: string
+  ]: PrimitiveRenderer;
+} = {};
+
+const updateCellMesh = (x: number, y: number, z: number) => {
+  const cellX = Math.floor(x / cellSize);
+  const cellY = Math.floor(y / cellSize);
+  const cellZ = Math.floor(z / cellSize);
+  const cellId = world.computeCellId(x, y, z);
+  const mesh = cellMeshes[cellId] 
+  if(!mesh){
+    cellMeshes[cellId]  = context.PrimitiveRenderer.fromArrayData(world.generateGeometryDataForCell(cellX, cellY, cellZ))
+    cellMeshes[cellId].createVAO()
+    .setDrawer(drawer)
+    .setProgramInfo(textureProgramInfo)
+    .setMode(4);
+    return
+  }
+  const arrayData = world.generateGeometryDataForCell(cellX, cellY, cellZ);
+  mesh.bufferData('POSITION', arrayData.attributes.POSITION.data)
+  mesh.bufferData('TEXCOORD_0', arrayData.attributes.TEXCOORD_0.data)
+  mesh.bufferData('NORMAL', arrayData.attributes.NORMAL.data)
+  mesh.setIndices(arrayData.indices)
+  return
+};
+
+
+for (let y = 0; y < cellSize; ++y) {
+    for (let z = -cellSize; z < cellSize; ++z) {
+      for (let x = -cellSize; x < cellSize; ++x) {
+        const height =
+          (Math.sin((x / cellSize) * Math.PI * 2) +
+            Math.sin((z / cellSize) * Math.PI * 3)) *
+            (cellSize / 6) +
+          cellSize / 2;
+        if (y < height) {
+          world.setVoxel(x, y, z, 1);
+          const phs = new TerrainSegment(new Box(1, 1, 1));
+  
+          
+          sim.setBlock(x,y,z, phs)
+
+        }
+      }
+    }
+  }
+
+for(const cellId in world.cells){
+  const [x,y,z] = cellId.split(',').map(i => parseInt(i))
+  updateCellMesh(x,y,z)
+}
+
+interface objectToDraw {
+  physics: IRigidBody;
+  sprite: PrimitiveRenderer
+  uniforms: { [key: string]: Iterable<number> };
+}
+
+let objectsToDraw: objectToDraw[] = [];
+
+const e: IRigidBody[] = [];
+console.log(e);
+for (let i = 0; i < 100; i++) {
+  const box = {
+    physics: new RigidBody(new Box(1, 1, 1)),
+    sprite: cube,
+    uniforms: { u_color: [Math.random(), Math.random(), Math.random(), 1] },
+  };
+  box.physics.translate([0 + (i % 5) * 3, 50 + 3.01 * (i % 3), 0]);
+  //box.physics.translate([0,  1 + 3.01 * (i), 0]);
+  box.physics.setMass(5);
+  box.physics.addAcceleration([0, -9, 0]);
+  sim.addObject(box.physics);
+  objectsToDraw.push(box);
+}
+
+
+
+console.log(cellMeshes)
+const mouseInput = new MouseInput(document.getElementById("canvas") as HTMLElement);
 mouseInput.listen();
 const keyInput = new KeyInput();
 keyInput.listen();
@@ -37,238 +154,11 @@ const player = new FreeCam();
 
 player.listenKeyboard(keyInput);
 player.listenMouse(mouseInput);
-player.camPos = [-10, 15, 20];
+player.camPos = [40, 48, 40];
 player.rotationX = -Math.PI * 0.1;
-player.rotationY = -Math.PI * 0.1;
-const gl = (document.getElementById("canvas") as HTMLCanvasElement).getContext(
-  "webgl2"
-) as WebGL2RenderingContext;
-const context = new GLcontextWrapper(gl);
+player.rotationY = Math.PI * 0.3;
 
-const { PrimitiveRenderer, Drawer, ProgramInfo, TextureInfo } = context;
-
-context.resizeCanvasToDisplaySize();
-const drawer = new Drawer();
-drawer.projectionMatrix = Drawer.create3dProjectionMatrix(
-  1,
-  2000,
-  gl.canvas.width,
-  gl.canvas.height
-);
-
-const pointLightProgramInfo = new ProgramInfo(
-  pointLightShaders.vert,
-  pointLightShaders.frag
-);
-
-pointLightProgramInfo.compileShaders().createUniformSetters();
-
-const defaultProgramInfo = new ProgramInfo(
-  defaultShaders.vert,
-  defaultShaders.frag
-);
-
-const textureProgramInfo = new ProgramInfo(
-  textureShaders.vert,
-  textureShaders.frag
-);
-
-textureProgramInfo.compileShaders().createUniformSetters();
-defaultProgramInfo.compileShaders().createUniformSetters();
-const cube = PrimitiveRenderer.fromArrayData(createBox(1, 1, 1));
-
-const point = new PrimitiveRenderer();
-const line = new PrimitiveRenderer();
-
-const texture1 = new TextureInfo();
-
-texture1.createTextureFromURL("resources/atlas.png");
-
-const settings = [
-  { x: -1, y: 1, zRot: 0, magFilter: gl.NEAREST, minFilter: gl.NEAREST },
-  { x: 0, y: 1, zRot: 0, magFilter: gl.LINEAR, minFilter: gl.LINEAR },
-  {
-    x: 1,
-    y: 1,
-    zRot: 0,
-    magFilter: gl.LINEAR,
-    minFilter: gl.NEAREST_MIPMAP_NEAREST,
-  },
-  {
-    x: -1,
-    y: -1,
-    zRot: 1,
-    magFilter: gl.LINEAR,
-    minFilter: gl.LINEAR_MIPMAP_NEAREST,
-  },
-  {
-    x: 0,
-    y: -1,
-    zRot: 1,
-    magFilter: gl.LINEAR,
-    minFilter: gl.NEAREST_MIPMAP_LINEAR,
-  },
-  {
-    x: 1,
-    y: -1,
-    zRot: 1,
-    magFilter: gl.LINEAR,
-    minFilter: gl.LINEAR_MIPMAP_LINEAR,
-  },
-];
-const s = settings[0];
-gl.bindTexture(gl.TEXTURE_2D, texture1.texture);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, s.minFilter);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, s.magFilter);
-
-
-cube
-  .createVAO()
-  .setDrawer(drawer)
-  .setProgramInfo(pointLightProgramInfo)
-  .setMode(4);
-
-const sphere = PrimitiveRenderer.fromArrayData(createSphere(1, 10, 10));
-sphere
-  .createVAO()
-  .setDrawer(drawer)
-  .setProgramInfo(pointLightProgramInfo)
-  .setMode(4);
-point
-  .createVAO()
-  .setDrawer(drawer)
-  .setProgramInfo(defaultProgramInfo)
-  .createBufferAttribData({
-    attribName: "a_position",
-    location: 0,
-    attributeType: WebGL2RenderingContext.FLOAT_VEC3,
-    numComponents: 3,
-  })
-  .setAttributes()
-  .bufferData(
-    "a_position",
-    new Float32Array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1])
-  )
-  .setMode(3)
-  .setNumElements(5);
-
-line
-  .createVAO()
-  .setDrawer(drawer)
-  .setProgramInfo(defaultProgramInfo)
-  .createBufferAttribData({
-    attribName: "a_position",
-    location: 0,
-    attributeType: WebGL2RenderingContext.FLOAT_VEC3,
-    numComponents: 3,
-  })
-  .setAttributes()
-  .setMode(3)
-  .setNumElements(2);
-
-const uniforms = {
-  u_lightWorldPosition: [30, 50, 30],
-  u_ambientLight: [1, 1, 0.3, 0.11],
-  u_reverseLightDirection: [1, 0, 0],
-  u_shininess: 300,
-};
-
-
-config.RIGID_BODY_MOVE_TRESHOLD = 0.001;
-config.CONTACT_TRESHOLD = 0.00001;
-config.CLIP_BIAS = 0.01;
-config.CONTACT_MANIFOLD_KEEP_TRESHOLD = 0.001;
-
-const sim = new Simulation();
-
-const cellSize = 32;
-const tileSize = 16;
-const tileTextureWidth = 256;
-const tileTextureHeight = 64;
-
-const world = new VoxelWorld({
-  cellSize,
-  tileSize,
-  tileTextureWidth,
-  tileTextureHeight,
-});
-
-for (let y =0; y < cellSize; ++y) {
-  for (let z = 0; z < cellSize; ++z) {
-    for (let x = 0; x < cellSize; ++x) {
-      const height = (Math.sin(x / cellSize * Math.PI * 2) + Math.sin(z / cellSize * Math.PI * 3)) * (cellSize / 6) + (cellSize / 2);
-      if (y < height) {
-       
-        world.setVoxel(x, y, z, 1);
-        const phs = new TerrainSegment(new Box(1,1,1))
-       
-        phs.translate([x+0.5,y+0.5,z+0.5])
-        sim.addObject(phs)
-
-      }
-    }
-  }
-}
-
-const chunkPrimitive = PrimitiveRenderer.fromArrayData(world.generateGeometryDataForCell(0,0,0))
-
-chunkPrimitive
-  .createVAO()
-  .setDrawer(drawer)
-  .setProgramInfo(textureProgramInfo)
-  .setMode(4);
-
-
-
-interface objectToDraw {
-  physics: RigidBody;
-  sprite: typeof cube;
-  uniforms: { [key: string]: Iterable<number> };
-}
-
-let objectsToDraw: objectToDraw[] = [];
-
-const e : IRigidBody[]= []
-console.log(e)
-for (let i = 0; i < 100; i++) {
-  const box = {
-    physics: new RigidBody(new Box(0.2, 1, 0.2)),
-    sprite: cube,
-    uniforms: { u_color: [Math.random(), Math.random(), Math.random(), 1] },
-  };
-  box.physics.translate([15 + (i % 5) * 3, 50 + 3.01 * (i % 3), 15]);
-  //box.physics.translate([0,  1 + 3.01 * (i), 0]);
-  box.physics.setMass(5);
-  box.physics.addAcceleration([0, -9, 0]);
-  sim.addObject(box.physics);
-  objectsToDraw.push(box);
-}
-
-const box = {
-  physics: new RigidBody(new Sphere(1)),
-  sprite: sphere,
-  uniforms: { u_color: [0, 0, 1, 1] },
-};
-box.physics.translate([10, 40, 10]);
-box.physics.setMass(32);
-box.physics.addAcceleration([0, -9, 0]);
-box.physics.addVelocity([0, 0, 0]);
-box.physics.addAngularVelocity([1, 1, 1]);
-sim.addObject(box.physics);
-objectsToDraw.push(box);
-
-/*
-const box2 = { physics: new RigidBody(new Box(5)), sprite: cube, uniforms : {u_color : [0,0,1,1]} };
-  box2.physics.translate([0,5,0]);
-  box2.physics.setMass(2);
-  box2.physics.addAcceleration([0, -9, 0]);
-  box2.physics.addVelocity([0,20,-0])
-  box2.physics.addAngularV([1,1,1])
-  sim.addObject(box2.physics);
-  objectsToDraw.push(box2);
-*/
 let lastCall = Date.now();
-
 const startTime = Date.now();
 const loop = () => {
   player.tick();
@@ -280,101 +170,35 @@ const loop = () => {
   Debug.data.RUNTIME = (curentTime - startTime) / 1000;
 
   lastCall = curentTime;
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.CULL_FACE);
-  gl.enable(gl.DEPTH_TEST);
+  context.gl.clear(context.gl.COLOR_BUFFER_BIT | context.gl.DEPTH_BUFFER_BIT);
+  context.gl.enable(context.gl.CULL_FACE);
+  context.gl.enable(context.gl.DEPTH_TEST);
 
   const cameraMatrix = player.camMatrix;
   const { translation } = m4.decompose(cameraMatrix);
   const u_viewWorldPosition = translation;
+  for(const cellId in cellMeshes){
+    cellMeshes[cellId].draw({
+        ...globalUniforms,
+        u_matrix: m4.identity(),
+        u_color: [0, 0, 0, 1],
+        u_viewWorldPosition,
+      },
+      cameraMatrix)
+  }
   objectsToDraw.forEach((obj) => {
     obj.sprite.draw(
       {
-        ...uniforms,
-        u_matrix: obj.physics.collider.getM4(),
+        ...globalUniforms,
+        u_matrix: obj.physics.getCollider().getM4(),
         u_viewWorldPosition,
         ...obj.uniforms,
       },
       cameraMatrix
     );
   });
-  chunkPrimitive.draw({
-    ...uniforms,
-    u_matrix: m4.identity(),
-    u_color: [0, 0, 0, 1],
-    u_viewWorldPosition,
-  },
-  cameraMatrix)
-  point.draw(
-    {
-      ...uniforms,
-      u_matrix: m4.scaling(6, 6, 6),
-      u_color: [0, 0, 0, 1],
-      u_viewWorldPosition,
-    },
-    cameraMatrix
-  );
-  point.draw(
-    {
-      ...uniforms,
-      u_matrix: m4.scale(
-        m4.zRotate(m4.yRotation(Math.PI), -Math.PI / 2),
-        6,
-        6,
-        6
-      ),
-      u_color: [1, 0.1, 1, 1],
-      u_viewWorldPosition,
-    },
-    cameraMatrix
-  );
-/*
-  for (const [id, manifold] of sim.collisionManifolds) {
-    manifold.contacts.forEach((contact) => {
-      point
-        .draw(
-          {
-            u_matrix: m4.translation(...contact.PA),
-            u_color: [0.6, 0.6, 0.0, 1],
-            ...uniforms,
-            u_viewWorldPosition,
-          },
-          cameraMatrix
-        )
-        .draw(
-          {
-            u_matrix: m4.translation(...contact.PB),
-            u_color: [0.5, 0.1, 0.2, 1],
-          },
-          cameraMatrix
-        );
-      /*line
-        .bufferData(
-          "a_position",
-          new Float32Array([...contact.PA, ...v3.sum(contact.PA, contact.j)])
-        )
-        .draw(
-          {
-            u_matrix: m4.identity(),
-            u_color: [0.5, 0.1, 0.2, 1],
-          },
-          cameraMatrix
-        );
-      line
-        .bufferData(
-          "a_position",
-          new Float32Array([...contact.PA, ...v3.sum(contact.PA, contact.i)])
-        )
-        .draw(
-          {
-            u_matrix: m4.identity(),
-            u_color: [0.9, 0.9, 0.2, 1],
-          },
-          cameraMatrix
-        );
-    });
-  }*/
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  
+  context.gl.viewport(0, 0, context.gl.canvas.width, context.gl.canvas.height);
   requestAnimationFrame(loop);
 };
 loop();

@@ -2,8 +2,9 @@ import Tree from "./Tree";
 import { v3 } from "romanpppmath";
 
 //import { getContacts as gjk } from "./gjk";
+
 import gjk from "./getCollisionFeatures";
-import Manifold from "./ContactManifold";
+import ContactManifold from "./ContactManifold";
 import System from "./System";
 
 import {
@@ -17,6 +18,8 @@ import { ContactConstraint } from "./Constraints";
 import IConstraint from "./models/IConstraint";
 import { RigidBody } from "./RigidBody";
 
+//import ISpatialContainer from "./models/ISpatialContainer";
+
 const sameGroup = (body1: IRigidBody, body2: IRigidBody) => {
   if (!body1.getGroup()) return;
   if (!body2.getGroup()) return;
@@ -27,49 +30,60 @@ const pairHash = (x: number, y: number) =>
 
 export default class Simulation {
   objects: Map<number, IRigidBody>;
-  _objects: IRigidBody[];
+  dynamicObjects: IRigidBody[];
   _staticObjects: IRigidBody[];
-  readonly tree: Tree<IRigidBody>;
-  readonly staticTree: Tree<IRigidBody>;
+  readonly dynamicObjectsTree: Tree<IRigidBody>;
+  readonly staticObjectsTree: Tree<IRigidBody>;
+  // staticObjects : {categoryName : string, bodies : IRigidBody[], spatialData : ISpatialContainer<IRigidBody>}[]
   constraints: Map<string, IConstraint[]>;
   positionConstraints: Map<string, IEquation[]>;
   collisions: ContactConstraint[];
-  collisionManifolds: Map<number, Manifold>;
+  contactManifolds: Map<number, ContactManifold>;
   broadPhaseCollisions: [number, number[]][];
   useCache: boolean;
   constructor() {
-    this._objects = [];
+    this.dynamicObjects = [];
     this._staticObjects = [];
-    this.tree = new Tree();
-    
-    this.staticTree = new Tree();
-    this.tree.setKey(rigidBody => rigidBody.getCollider().getId())
-    this.staticTree.setKey(rigidBody => rigidBody.getCollider().getId())
+    this.dynamicObjectsTree = new Tree();
+
+    this.staticObjectsTree = new Tree();
+    this.dynamicObjectsTree.setKey((rigidBody) =>
+      rigidBody.getCollider().getId()
+    );
+    this.staticObjectsTree.setKey((rigidBody) =>
+      rigidBody.getCollider().getId()
+    );
     this.collisions = [];
     this.constraints = new Map();
     this.useCache = true;
-    this.collisionManifolds = new Map();
+    this.contactManifolds = new Map();
+  }
+  getContactManifold(id1 : number, id2 : number){
+    return this.contactManifolds.get(id1 === Math.max(id1, id2) ? id1 * id1 + id1 + id2 : id2 * id2 + id1 + id2)
+  }
+  addContactManifold(id1 : number, id2 : number, manifold : ContactManifold){
+    this.contactManifolds.set(id1 === Math.max(id1, id2) ? id1 * id1 + id1 + id2 : id2 * id2 + id1 + id2, manifold)
   }
   addObject(object: IRigidBody) {
-    const { tree, objects, staticTree } = this;
+    const { dynamicObjectsTree, objects, staticObjectsTree } = this;
 
     const aabb = object.getAABB();
 
     if (object.isStatic()) {
       this._staticObjects.push(object);
-      staticTree.insert(object);
+      staticObjectsTree.insert(object);
       object.onUpdate(() => {
-        staticTree.remove(object.getCollider().getId());
-        staticTree.insert(object);
+        staticObjectsTree.remove(object.getCollider().getId());
+        staticObjectsTree.insert(object);
       });
       return;
     }
 
-    tree.insert(object);
-    this._objects.push(object);
+    dynamicObjectsTree.insert(object);
+    this.dynamicObjects.push(object);
     object.onUpdate(() => {
-      tree.remove(object.getCollider().getId());
-      tree.insert(object);
+      dynamicObjectsTree.remove(object.getCollider().getId());
+      dynamicObjectsTree.insert(object);
     });
   }
   addConstraints(constraints: IConstraint[], name: string) {
@@ -79,118 +93,81 @@ export default class Simulation {
     this.positionConstraints.set(name, [...constraints]);
   }
   removeObject(object: IRigidBody) {
-    this.tree.remove(object.getCollider().getId());
+    this.dynamicObjectsTree.remove(object.getCollider().getId());
   }
-
-  updateCollisions() {
-    const { collisionManifolds, tree, staticTree, objects } = this;
-    let keep = 0;
-    for (const [hash, manifold] of collisionManifolds) {
+  updatecontactManifolds() {
+    for (const [hash, manifold] of this.contactManifolds) {
       manifold.update();
-      if (!manifold.keep) collisionManifolds.delete(hash);
-      keep++;
+      if (!manifold.keep) this.contactManifolds.delete(hash);
     }
-    const collisions = tree._getCollisions();
-    for(let i = 0, n = collisions.length; i < n; i++){
-      const pair = collisions[i]
+  }
+  updateDynamicCollisions() {
+    const collisions = this.dynamicObjectsTree.getCollisionsPairs();
+    for (let i = 0, n = collisions.length; i < n; i++) {
+      const pair = collisions[i];
       if (sameGroup(pair[0], pair[1])) continue;
 
-          const hash = pairHash(
-            pair[0].getCollider().getId(),
-            pair[1].getCollider().getId()
-          );
-          let manifold = this.collisionManifolds.get(hash);
-          if (manifold) continue
-          const actualContacts = gjk(pair[0].getCollider(), pair[1].getCollider());
+      const hash = pairHash(
+        pair[0].getCollider().getId(),
+        pair[1].getCollider().getId()
+      );
+      let manifold = this.contactManifolds.get(hash);
+      if (manifold) continue;
+      const features = gjk(pair[0].getCollider(), pair[1].getCollider());
 
-          if (actualContacts.length > 0) {
-           
-            manifold = new Manifold(
-              actualContacts.map(
-                (c) =>
-                  new ContactConstraint(
-                    pair[0],
-                    pair[1],
-                    c.raLocal,
-                    c.rbLocal,
-                    c.ra,
-                    c.rb,
-                    c.PA,
-                    c.PB,
-                    c.n,
-                    c.positionError,
-                    c.i,
-                    c.j
-                  )
-              )
-            );
-
-            this.collisionManifolds.set(hash, manifold);
-          }
+      if (features.length > 0) {
+        this.contactManifolds.set(
+          hash,
+          ContactManifold.fromFeaturesArray(pair[0], pair[1], features)
+        );
+      }
     }
-    this._objects.forEach((body1) => {
-      const collisions = staticTree.getCollisions(body1)
-    
+  }
+  updateCollisions() {
+    this.updatecontactManifolds();
+    this.updateDynamicCollisions();
+    this.dynamicObjects.forEach((body1) => {
+      const aabb = body1.getAABB();
+      const collisions = this.staticObjectsTree.query(aabb);
 
       //tree.elements.get(body1.getCollider().getId()).isChecked = true;
 
-      if (collisions.length != 0)
-        for (let j = 0, n = collisions.length; j < n; j++) {
-          const body2 = collisions[j];
+      for (let j = 0, n = collisions.length; j < n; j++) {
+        const body2 = collisions[j];
+        if (body1 === body2) continue;
+        const hash = pairHash(
+          body1.getCollider().getId(),
+          body2.getCollider().getId()
+        );
+        let manifold = this.contactManifolds.get(hash);
 
-          if (sameGroup(body1, body2)) continue;
+        //if (manifold) continue;
+        if (manifold) continue;
+        const features = gjk(body1.getCollider(), body2.getCollider());
 
-          const hash = pairHash(
-            body1.getCollider().getId(),
-            body2.getCollider().getId()
+        if (features.length > 0) {
+          this.contactManifolds.set(
+            hash,
+            ContactManifold.fromFeaturesArray(body1, body2, features)
           );
-          let manifold = this.collisionManifolds.get(hash);
-
-          //if (manifold) continue;
-          if (manifold) continue
-          const actualContacts = gjk(body1.getCollider(), body2.getCollider());
-
-          if (actualContacts.length > 0) {
-           
-            manifold = new Manifold(
-              actualContacts.map(
-                (c) =>
-                  new ContactConstraint(
-                    body1,
-                    body2,
-                    c.raLocal,
-                    c.rbLocal,
-                    c.ra,
-                    c.rb,
-                    c.PA,
-                    c.PB,
-                    c.n,
-                    c.positionError,
-                    c.i,
-                    c.j
-                  )
-              )
-            );
-
-            this.collisionManifolds.set(hash, manifold);
-          }
         }
+      }
     });
-    this.tree.setUnchecked();
-    this.staticTree.setUnchecked();
+    this.dynamicObjectsTree.setUnchecked();
+    this.staticObjectsTree.setUnchecked();
   }
 
   tick(dt: number) {
     this.updateCollisions();
-    const { objects, collisionManifolds } = this;
+    const { objects, contactManifolds } = this;
 
-    this._objects.forEach((body) => body.integrateForces(dt));
+    this.dynamicObjects.forEach((body) => body.integrateForces(dt));
     const system = new System();
     system.useCache = this.useCache;
     const frictionSystem = new System(false);
     const contactEquations = [];
     const frictionEquations = [];
-    for (let [key, manifold] of collisionManifolds) {
+    for (let [key, manifold] of contactManifolds) {
       const useVelocityBias = manifold.contacts.length < 2;
 
       manifold.contacts.forEach((contactConstraint, _i) => {
@@ -238,12 +215,12 @@ export default class Simulation {
       frictionEquations[2 * i + 1].lambdaMax = lambda[i];
     }*/
 
-    this._objects.forEach((object) => object.updateInverseInertia());
-    this._objects.forEach((object) => object.integrateVelocities(dt));
+    this.dynamicObjects.forEach((object) => object.updateInverseInertia());
+    this.dynamicObjects.forEach((object) => object.integrateVelocities(dt));
 
     let ndx = 0;
     /*
-    for (const [key, manifold] of this.collisionManifolds) {
+    for (const [key, manifold] of this.contactManifolds) {
       
       manifold.contacts.forEach((c) => {
         c.prevLambda = lambda[ndx]

@@ -1,9 +1,10 @@
-import { AABB, mat3, Tuple, vec3 } from "romanpppmath";
+import {  mat3, Tuple, vec3 } from "romanpppmath";
+import AABB from "../AABB";
 import ICollider from "./ICollider";
 
 export default interface IRigidBody {
 
-  getCollider() : ICollider
+  getCollider() : ICollider ;
   getId() : number
   getGroup() : number
   getMass() : number

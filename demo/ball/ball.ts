@@ -192,7 +192,7 @@ floor.physics.translate([0, -2.5, 0]);
 sim.addObject(floor.physics);
 
 interface objectToDraw {
-  physics: RigidBody;
+  physics: IRigidBody;
   sprite: typeof cube;
   uniforms: { [key: string]: Iterable<number> };
 }
@@ -262,7 +262,7 @@ const loop = () => {
     obj.sprite.draw(
       {
         ...uniforms,
-        u_matrix: obj.physics.collider.getM4(),
+        u_matrix: obj.physics.getCollider().getM4(),
         u_viewWorldPosition,
         ...obj.uniforms,
       },

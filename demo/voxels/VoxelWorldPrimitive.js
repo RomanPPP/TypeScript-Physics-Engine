@@ -71,6 +71,7 @@ export default class VoxelWorld {
     const {cellSize} = this;
     this.cellSliceSize = cellSize * cellSize;
     this.cells = {}
+    this.cellMeshes = {}
   }
   computeCellId(x, y, z) {
     const {cellSize} = this;
@@ -146,7 +147,7 @@ export default class VoxelWorld {
               if (!neighbor) {
                 const ndx = positions.length / 3;
                 for (const { pos, uv } of corners) {
-                  positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
+                  positions.push(pos[0] + voxelX, pos[1] + voxelY, pos[2] + voxelZ);
                   normals.push(...dir);
                   uvs.push(
                     ((uvVoxel + uv[0]) * tileSize) / tileTextureWidth,
@@ -208,4 +209,5 @@ export default class VoxelWorld {
 
     return ArrayData;
   }
+  updateCellGeometry
 }

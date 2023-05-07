@@ -1,4 +1,5 @@
-import { vec3, mat3, mat4, AABB } from "romanpppmath";
+import { vec3, mat3, mat4} from "romanpppmath";
+import AABB from "../AABB";
 import IRigidBody from "./IRigidBody";
 export default interface ICollider {
   

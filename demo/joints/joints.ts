@@ -90,11 +90,11 @@ const uniforms = {
   u_shininess: 300,
 };
 
-import { RigidBody } from "../../src/physics/RigidBody";
-
+import { RigidBody, TerrainSegment } from "../../src/physics/RigidBody";
+import IRigidBody from "../../src/physics/models/IRigidBody";
 import Simulation from "../../src/physics/Simulation";
 
-import { Box, Sphere } from "../../src/physics/Collider";
+import { Box, Sphere, Triangle } from "../../src/physics/Collider";
 import { Constraint } from "../../src/physics/Constraints";
 import config from "../../src/physics/config";
 
@@ -104,26 +104,26 @@ const sim = new Simulation();
 const body = new RigidBody(new Box(5, 5, 5));
 
 const floor = {
-  physics: new RigidBody(new Box(50, 5, 50)),
+  physics: new TerrainSegment(new Triangle([[-10,0,-10], [10,0,10], [-10,0,10]])),
   sprite: cube,
   uniforms: { u_color: [1, 0, 1, 1] },
 };
 
 floor.physics.setMass(99999999999);
-floor.physics.static = true;
+
 
 floor.physics.translate([0, -2.5, 0]);
 sim.addObject(floor.physics);
 
 interface objectToDraw {
-  physics: RigidBody;
+  physics: IRigidBody;
   sprite: typeof cube;
   uniforms: { [key: string]: Iterable<number> };
 }
 
 let objectsToDraw: objectToDraw[] = [];
 
-objectsToDraw.push(floor);
+
 
 /*
 for (let i = 0; i < 10; i++) {
@@ -197,7 +197,7 @@ const loop = () => {
     obj.sprite.draw(
       {
         ...uniforms,
-        u_matrix: obj.physics.collider.getM4(),
+        u_matrix: obj.physics.getCollider().getM4(),
         u_viewWorldPosition,
         ...obj.uniforms,
       },
@@ -249,6 +249,7 @@ const loop = () => {
         );
     });
   }
+  floor.physics.getCollider().vertices
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   requestAnimationFrame(loop);
 };

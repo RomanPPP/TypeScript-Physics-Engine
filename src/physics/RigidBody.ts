@@ -1,13 +1,14 @@
 import EventEmitter from "./EventEmitter";
-import { m3, v3, vec3, mat3,AABB, Tuple } from 'romanpppmath';
+import { m3, v3, vec3, mat3, Tuple } from 'romanpppmath';
+import AABB from "./AABB";
 import ICollider from "./models/ICollider";
 import IRigidBody from "./models/IRigidBody";
 import config from "./config";
 const {RIGID_BODY_MOVE_TRESHOLD, RIGID_BODY_AABB_BIAS} = config
-class RigidBody extends EventEmitter implements IRigidBody {
+class RigidBody<T extends ICollider> extends EventEmitter implements IRigidBody {
  
   static: boolean;
-  collider: ICollider;
+  collider: T;
   mass: number;
   inverseMass: number;
   velocity: vec3;
@@ -24,7 +25,7 @@ class RigidBody extends EventEmitter implements IRigidBody {
  
   static lastId = 1
 
-  constructor(collider : ICollider) {
+  constructor(collider : T) {
     super();
     this.static = false;
     this.collider = collider;
@@ -63,7 +64,7 @@ class RigidBody extends EventEmitter implements IRigidBody {
   getTranslation(): vec3 {
     return this.getCollider().getTranslation()
   }
-  getCollider(): ICollider {
+  getCollider(): T {
     return this.collider
   }
   isStatic(): boolean {
@@ -263,13 +264,13 @@ class RigidBody extends EventEmitter implements IRigidBody {
       })
   }
 }
-class TerrainSegment implements IRigidBody{
+class TerrainSegment<T extends ICollider> implements IRigidBody{
     static id = 0
     group : number 
-    collider : ICollider
+    collider : T
     friction : number
     updateEventFunctions : Function[]
-    constructor(collider : ICollider){
+    constructor(collider : T){
       this.collider = collider
       this.group = null
       this.friction = 5
@@ -294,7 +295,7 @@ class TerrainSegment implements IRigidBody{
     getTranslation(): vec3 {
       return this.getCollider().getTranslation()
     }
-    getCollider(): ICollider {
+    getCollider(): T {
       return this.collider
     }
     isStatic(): boolean {
@@ -430,6 +431,7 @@ class TerrainSegment implements IRigidBody{
       })
   }
 }
+/*
 class Player extends RigidBody {
   constructor(collider : ICollider) {
     super(collider);
@@ -448,4 +450,5 @@ class Player extends RigidBody {
   
   
 }
-export { RigidBody, Player, TerrainSegment};
+*/
+export { RigidBody, TerrainSegment};

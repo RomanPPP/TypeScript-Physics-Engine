@@ -1,4 +1,5 @@
-import { mat3, v3, vec3, m3, AABB, m4, Tuple, mat4 } from "romanpppmath";
+import { mat3, v3, vec3, m3, m4, Tuple, mat4 } from "romanpppmath";
+import AABB from "./AABB";
 import ICollider from "./models/ICollider";
 import IRigidBody from "./models/IRigidBody";
 

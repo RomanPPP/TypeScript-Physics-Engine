@@ -1,5 +1,5 @@
-import { AABB } from "romanpppmath";
-
+import { vec3 } from "romanpppmath";
+import AABB from "./AABB";
 const getBoundAabb = (aabb1: AABB, aabb2: AABB) => {
   const x1 = aabb1.min[0] < aabb2.min[0] ? aabb1.min[0] : aabb2.min[0];
   const x2 = aabb1.max[0] > aabb2.max[0] ? aabb1.max[0] : aabb2.max[0];
@@ -40,7 +40,7 @@ class Node<T> {
   right: Node<T>;
   object: any;
   height: number;
-  queryId : number
+  queryId: number;
 
   constructor(aabb: AABB, isLeaf: boolean, object: T, id: number) {
     this.aabb = aabb;
@@ -52,29 +52,28 @@ class Node<T> {
     this.isChecked = false;
     this.object = object;
     this.height = 0;
-    this.queryId = 0
+    this.queryId = 0;
   }
 }
 export default class Tree<T extends ObjectWithAABB> {
   root: Node<T>;
-  elements: Map<number, Node<T>>;
-  queryId : number
-  collisions : [T,T][]
-  getId : (o : T) =>number
+  elements: Map<any, Node<T>>;
+  queryId: number;
+  collisions: [T, T][];
+  getId: (o: T) => any;
   constructor() {
     this.root = null;
     this.elements = new Map();
-    this.queryId = 0
-    this.getId = null
-    this.collisions = []
+    this.queryId = 0;
+    this.getId = null;
+    this.collisions = [];
   }
-  setKey( f : (o : T) =>   number){
-    this.getId = f
+  setKey(f: (o: T) => any) {
+    this.getId = f;
   }
-  updateQueryId(){
-    this.queryId++
+  updateQueryId() {
+    this.queryId++;
   }
-
 
   setUnchecked() {
     if (!this.root) return;
@@ -84,7 +83,6 @@ export default class Tree<T extends ObjectWithAABB> {
       const node = stack.pop();
       node.isChecked = false;
       if (node.isLeaf) {
-        
         continue;
       }
       if (node.left) stack.push(node.left);
@@ -96,29 +94,29 @@ export default class Tree<T extends ObjectWithAABB> {
 
     while (!potential.isLeaf) {
       potential.height++;
-      const size = getSize(potential.aabb);
-      const combinedAABB = getBoundAabb(potential.aabb, leaf.aabb);
-      const combinedSize = getSize(combinedAABB);
+      const size = potential.aabb.getSize();
+      const combinedAABB = potential.aabb.merge(leaf.aabb);
+      const combinedSize = combinedAABB.getSize();
       let cost = combinedSize;
       let inherCost = combinedSize - size;
 
       let cost1: number;
       if (potential.left.isLeaf) {
-        cost1 = getSize(potential.left.aabb) + inherCost;
+        cost1 = potential.left.aabb.getSize() + inherCost;
       } else {
         cost1 =
-          getSize(getBoundAabb(leaf.aabb, potential.left.aabb)) -
-          getSize(potential.left.aabb) +
+          leaf.aabb.merge(potential.left.aabb).getSize() -
+          potential.left.aabb.getSize() +
           inherCost;
       }
 
       let cost2: number;
       if (potential.right.isLeaf) {
-        cost2 = getSize(potential.right.aabb) + inherCost;
+        cost2 = potential.right.aabb.getSize() + inherCost;
       } else {
         cost2 =
-          getSize(getBoundAabb(leaf.aabb, potential.right.aabb)) -
-          getSize(potential.right.aabb) +
+          leaf.aabb.merge(potential.right.aabb).getSize() -
+          potential.right.aabb.getSize() +
           inherCost;
       }
       if (cost < cost1 && cost < cost2) return potential;
@@ -130,7 +128,7 @@ export default class Tree<T extends ObjectWithAABB> {
   }
   insert(object: T) {
     const aabb = object.getAABB();
-    const id = this.getId(object)
+    const id = this.getId(object);
     const leaf = new Node(aabb, true, object, id);
     this.elements.set(id, leaf);
     if (this.root === null) {
@@ -145,7 +143,7 @@ export default class Tree<T extends ObjectWithAABB> {
     const newParent = new Node(null, false, null, null);
     newParent.parent = oldParent;
 
-    newParent.aabb = getBoundAabb(leaf.aabb, sibling.aabb);
+    newParent.aabb = leaf.aabb.merge(sibling.aabb);
     newParent.height = sibling.height + 1;
     if (oldParent) {
       if (oldParent.left === sibling) oldParent.left = newParent;
@@ -178,7 +176,7 @@ export default class Tree<T extends ObjectWithAABB> {
       return null;
     }
     if (node.isLeaf || node.height < 2) {
-      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+      node.aabb = node.left.aabb.merge(node.right.aabb);
       return node;
     }
     const left = node.left;
@@ -213,8 +211,8 @@ export default class Tree<T extends ObjectWithAABB> {
         node.height = 1 + Math.max(left.height, rightleft.height);
         right.height = 1 + Math.max(node.height, rightright.height);
       }
-      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
-      right.aabb = getBoundAabb(right.left.aabb, right.right.aabb);
+      node.aabb = node.left.aabb.merge(node.right.aabb);
+      right.aabb = right.left.aabb.merge(right.right.aabb);
 
       return right;
     }
@@ -248,26 +246,26 @@ export default class Tree<T extends ObjectWithAABB> {
         node.height = 1 + Math.max(right.height, leftleft.height);
         left.height = 1 + Math.max(node.height, leftright.height);
       }
-      node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
-      left.aabb = getBoundAabb(left.left.aabb, left.right.aabb);
+      node.aabb = node.left.aabb.merge(node.right.aabb);
+      left.aabb = left.left.aabb.merge(left.right.aabb);
 
       return left;
     }
-    node.aabb = getBoundAabb(node.left.aabb, node.right.aabb);
+    node.aabb = node.left.aabb.merge(node.right.aabb);
     return node;
   }
-  getCollisions(object: T) {
-    const aabb = object.getAABB();
-    const cols: T[] = [];
-   // this.elements.get(this.getId(object)).queryId = this.queryId
+  query(aabb: AABB, cols: T[] = []) {
+    //const aabb = object.getAABB();
+
+    // this.elements.get(this.getId(object)).queryId = this.queryId
     const iter = (_node: Node<T>) => {
       if (!_node) {
         return;
       }
-      if (_node.object === object) {
+      /* if (_node.object === object) {
         return;
-      }
-      if (isCollide(aabb, _node.aabb)) {
+      }*/
+      if (aabb.isCollide(_node.aabb)) {
         if (_node.isLeaf && !_node.isChecked) {
           cols.push(_node.object);
         }
@@ -280,7 +278,27 @@ export default class Tree<T extends ObjectWithAABB> {
 
     return cols;
   }
+  pick(point: vec3, cols: T[] = []) {
+    const iter = (_node: Node<T>) => {
+      if (!_node) {
+        return;
+      }
+      /* if (_node.object === object) {
+        return;
+      }*/
+      if (_node.aabb.contain(point)) {
+        if (_node.isLeaf && !_node.isChecked) {
+          cols.push(_node.object);
+        }
+        iter(_node.left);
+        iter(_node.right);
+      }
+    };
 
+    iter(this.root);
+
+    return cols;
+  }
   remove(id: number) {
     const leaf = this.elements.get(id);
     if (!leaf) return;
@@ -305,16 +323,15 @@ export default class Tree<T extends ObjectWithAABB> {
       while (_node) {
         _node = this.balance(_node);
         _node.height = 1 + Math.max(_node.right.height, _node.left.height);
-        _node = _node.parent
+        _node = _node.parent;
       }
-
     } else {
       this.root = sibling;
       sibling.parent = null;
     }
     this.elements.delete(id);
   }
-  
+
   toArray(node: Node<T>) {
     const iter = (leaf: Node<T>) => {
       if (!leaf) {
@@ -326,48 +343,43 @@ export default class Tree<T extends ObjectWithAABB> {
     if (!node) node = this.root;
     return iter(node);
   }
-  _getCollisions(){
-    this.collisions = []
-    if(!this.root || this.root.isLeaf) return this.collisions
-    this.setUnchecked()
-    this._getCollisionsHelper(this.root.left, this.root.right)
-    return this.collisions
-
+  getCollisionsPairs() {
+    this.collisions = [];
+    if (!this.root || this.root.isLeaf) return this.collisions;
+    this.setUnchecked();
+    this._getCollisionsHelper(this.root.left, this.root.right);
+    return this.collisions;
   }
-  _getCollisionsHelper(node1 : Node<T>, node2 : Node<T>){
-    if(node1.isLeaf){
-      if(node2.isLeaf){
-        if(isCollide(node1.aabb, node2.aabb)){
-          this.collisions.push([node1.object, node2.object])
+  _getCollisionsHelper(node1: Node<T>, node2: Node<T>) {
+    if (node1.isLeaf) {
+      if (node2.isLeaf) {
+        if (isCollide(node1.aabb, node2.aabb)) {
+          this.collisions.push([node1.object, node2.object]);
         }
+      } else {
+        this.crossChildren(node2);
+        this._getCollisionsHelper(node1, node2.right);
+        this._getCollisionsHelper(node1, node2.left);
       }
-      else{
-        this.crossChildren(node2)
-        this._getCollisionsHelper(node1, node2.right)
-        this._getCollisionsHelper(node1, node2.left)
-
-      }
-    }
-    else{
-      if(node2.isLeaf){
-        this.crossChildren(node1)
-        this._getCollisionsHelper(node1.right, node2)
-        this._getCollisionsHelper(node1.left, node2)
-      }
-      else{
-        this.crossChildren(node1)
-        this.crossChildren(node2)
-        this._getCollisionsHelper(node1.right, node2.right)
-        this._getCollisionsHelper(node1.left, node2.left)
-        this._getCollisionsHelper(node1.right, node2.left)
-        this._getCollisionsHelper(node1.left, node2.right)
+    } else {
+      if (node2.isLeaf) {
+        this.crossChildren(node1);
+        this._getCollisionsHelper(node1.right, node2);
+        this._getCollisionsHelper(node1.left, node2);
+      } else {
+        this.crossChildren(node1);
+        this.crossChildren(node2);
+        this._getCollisionsHelper(node1.right, node2.right);
+        this._getCollisionsHelper(node1.left, node2.left);
+        this._getCollisionsHelper(node1.right, node2.left);
+        this._getCollisionsHelper(node1.left, node2.right);
       }
     }
   }
-  crossChildren(node : Node<T>){
-    if(!node.isChecked){
-      this._getCollisionsHelper(node.right, node.left)
-      node.isChecked = true
+  crossChildren(node: Node<T>) {
+    if (!node.isChecked) {
+      this._getCollisionsHelper(node.right, node.left);
+      node.isChecked = true;
     }
   }
 }
