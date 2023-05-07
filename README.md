@@ -1,7 +1,4 @@
 # Simple JavaScript Physics Engine
-[Demo 1](https://romanppp.github.io/SimplePhysicsEngine/shapes)
-
-![alt text](images/shapes.gif)
 
 
 
@@ -9,7 +6,7 @@
 
 ![alt text](images/result2.png)
 
-[Ball demo](https://romanppp.github.io/TypeScript-Physics-Engine/demo/ball/ball.html)
+[Wall demo](https://romanppp.github.io/TypeScript-Physics-Engine/demo/ball/ball.html)
 
 ![alt text](images/ball.jpg)
 
