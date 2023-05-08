@@ -128,7 +128,7 @@ let objectsToDraw: objectToDraw[] = [];
 
 const e: IRigidBody[] = [];
 console.log(e);
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 50; i++) {
   const box = {
     physics: new RigidBody(new Box(1, 1, 1)),
     sprite: cube,
