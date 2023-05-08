@@ -23,12 +23,10 @@ player.listenMouse(mouseInput);
 player.camPos = [-10, 30, 25];
 player.rotationX = -Math.PI * 0.1
 player.rotationY = -Math.PI * 0.1
-const gl = (document.getElementById("canvas") as HTMLCanvasElement).getContext(
-  "webgl2"
-) as WebGL2RenderingContext;
-const context = new GLcontextWrapper(gl);
 
-const { PrimitiveRenderer, Drawer, ProgramInfo } = context;
+const context = new GLcontextWrapper("canvas");
+
+const { PrimitiveRenderer, Drawer, ProgramInfo, gl } = context;
 
 context.resizeCanvasToDisplaySize();
 const drawer = new Drawer();
