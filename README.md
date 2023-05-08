@@ -12,7 +12,7 @@
 
 [Voxel terrain demo](https://romanppp.github.io/TypeScript-Physics-Engine/demo/voxels/voxels.html)
 
-![alt text](images/voxls.jpg)
+![alt text](images/voxls.png)
 
 
 # Features : 
