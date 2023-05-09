@@ -24,12 +24,12 @@ drawer.projectionMatrix = context.Drawer.create3dProjectionMatrix(
   context.gl.canvas.height
 );
 const globalUniforms = {
-    u_lightWorldPosition: [30, 50, 30],
-    u_ambientLight: [1, 1, 0.3, 0.11],
-    u_reverseLightDirection: [1, 0, 0],
-    u_shininess: 300,
-  };
-  
+  u_lightWorldPosition: [30, 50, 30],
+  u_ambientLight: [1, 1, 0.3, 0.11],
+  u_reverseLightDirection: [1, 0, 0],
+  u_shininess: 300,
+};
+
 
 const textureProgramInfo = new context.ProgramInfo(
   textureShaders.vert,
@@ -66,7 +66,7 @@ const world = new VoxelWorldPrimitive({
 
 const cellMeshes: {
   [
-    id: string
+  id: string
   ]: PrimitiveRenderer;
 } = {};
 
@@ -75,13 +75,13 @@ const updateCellMesh = (x: number, y: number, z: number) => {
   const cellY = Math.floor(y / cellSize);
   const cellZ = Math.floor(z / cellSize);
   const cellId = world.computeCellId(x, y, z);
-  const mesh = cellMeshes[cellId] 
-  if(!mesh){
-    cellMeshes[cellId]  = context.PrimitiveRenderer.fromArrayData(world.generateGeometryDataForCell(cellX, cellY, cellZ))
+  const mesh = cellMeshes[cellId]
+  if (!mesh) {
+    cellMeshes[cellId] = context.PrimitiveRenderer.fromArrayData(world.generateGeometryDataForCell(cellX, cellY, cellZ))
     cellMeshes[cellId].createVAO()
-    .setDrawer(drawer)
-    .setProgramInfo(textureProgramInfo)
-    .setMode(4);
+      .setDrawer(drawer)
+      .setProgramInfo(textureProgramInfo)
+      .setMode(4);
     return
   }
   const arrayData = world.generateGeometryDataForCell(cellX, cellY, cellZ);
@@ -94,28 +94,28 @@ const updateCellMesh = (x: number, y: number, z: number) => {
 
 
 for (let y = 0; y < cellSize; ++y) {
-    for (let z = -cellSize; z < cellSize; ++z) {
-      for (let x = -cellSize; x < cellSize; ++x) {
-        const height =
-          (Math.sin((x / cellSize) * Math.PI * 2) +
-            Math.sin((z / cellSize) * Math.PI * 3)) *
-            (cellSize / 6) +
-          cellSize / 2;
-        if (y < height) {
-          world.setVoxel(x, y, z, 1);
-          const phs = new TerrainSegment(new Box(1, 1, 1));
-  
-          
-          sim.setBlock(x,y,z, phs)
+  for (let z = -cellSize; z < cellSize; ++z) {
+    for (let x = -cellSize; x < cellSize; ++x) {
+      const height =
+        (Math.sin((x / cellSize) * Math.PI * 2) +
+          Math.sin((z / cellSize) * Math.PI * 3)) *
+        (cellSize / 6) +
+        cellSize / 2;
+      if (y < height) {
+        world.setVoxel(x, y, z, 1);
+        const phs = new TerrainSegment(new Box(1, 1, 1));
 
-        }
+
+        sim.setBlock(x, y, z, phs)
+
       }
     }
   }
+}
 
-for(const cellId in world.cells){
-  const [x,y,z] = cellId.split(',').map(i => parseInt(i))
-  updateCellMesh(x,y,z)
+for (const cellId in world.cells) {
+  const [x, y, z] = cellId.split(',').map(i => parseInt(i))
+  updateCellMesh(x, y, z)
 }
 
 interface objectToDraw {
@@ -177,13 +177,13 @@ const loop = () => {
   const cameraMatrix = player.camMatrix;
   const { translation } = m4.decompose(cameraMatrix);
   const u_viewWorldPosition = translation;
-  for(const cellId in cellMeshes){
+  for (const cellId in cellMeshes) {
     cellMeshes[cellId].draw({
-        ...globalUniforms,
-        u_matrix: m4.identity(),
-        u_color: [0, 0, 0, 1],
-        u_viewWorldPosition,
-      },
+      ...globalUniforms,
+      u_matrix: m4.identity(),
+      u_color: [0, 0, 0, 1],
+      u_viewWorldPosition,
+    },
       cameraMatrix)
   }
   objectsToDraw.forEach((obj) => {
@@ -197,7 +197,7 @@ const loop = () => {
       cameraMatrix
     );
   });
-  
+
   context.gl.viewport(0, 0, context.gl.canvas.width, context.gl.canvas.height);
   requestAnimationFrame(loop);
 };
